@@ -3,10 +3,10 @@ selenium
 uvicorn
 webdriver-manager
 sqlalchemy
-"python-jose[cryptography]"
+python-jose[cryptography]
 python-dotenv
 python-multipart
-"passlib[bcrypt]"
+passlib[bcrypt]
 scikit-learn
 pandas
 prometheus_fastapi_instrumentator
