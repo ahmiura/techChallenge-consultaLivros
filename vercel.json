@@ -4,10 +4,6 @@
         {
             "src": "src/consultaLivros/main.py",
             "use": "@vercel/python"
-        },
-        {
-            "src": "src/consultaLivros/requirements.txt",
-            "use": "@vercel/python"
         }
     ],
     "routes": [
