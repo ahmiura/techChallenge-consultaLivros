@@ -11,16 +11,5 @@
             "src": "/(.*)",
             "dest": "src/consultaLivros/main.py"
         }
-    ],
-    "env": {
-        "DATABASE_URL": "@consulta_livros_db_url",
-        "SECRET_KEY": "@consulta_livros_secret_key",
-        "ML_MODEL_PATH": "@consulta_livros_ml_model_path"
-    },
-    "functions": {
-        "main.py": {
-            "memory": 512,
-            "maxDuration": 10
-        }
-    }
+    ]
 }
