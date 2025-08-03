@@ -1,6 +1,6 @@
 📚 Consulta Livros - API e Pipeline de ML
 1. Descrição do Projeto
-Consulta Livros é uma aplicação completa que demonstra um ciclo de vida de um projeto de dados, desde a coleta até a predição com Machine Learning. A aplicação realiza a raspagem de dados do site books.toscrape.com, armazena as informações em um banco de dados e as expõe através de uma API RESTful robusta construída com FastAPI.
+Consulta Livros é uma aplicação completa que demonstra um ciclo de vida de um projeto de dados, desde a coleta até a predição com Machine Learning. A aplicação realiza a raspagem de dados do site books.toscrape.com, armazena as informações em um banco de dados e as expõe através de uma API RESTful robusta construída com FastAPI.!
 
 Além disso, o projeto inclui um pipeline de Machine Learning para prever a avaliação de livros e um sistema de monitoramento com logs estruturados, métricas de performance e um dashboard analítico em Streamlit.
 
