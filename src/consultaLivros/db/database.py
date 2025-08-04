@@ -2,16 +2,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import os
+from dotenv import load_dotenv
 
-DATABASE_URL = "sqlite:///./banco_de_dados/app.db" 
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv() 
 
-# Cria o diretório se ele não existir
-os.makedirs(os.path.dirname(DATABASE_URL.split("///")[1]), exist_ok=True)
+# Lê a URL do banco de dados da variável de ambiente 'DATABASE_URL'
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Cria o engine para o banco de dados SQLite
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False} # connect_args={"check_same_thread": False} é necessário para permitir o uso de múltiplas threads com SQLite
-)
+if not DATABASE_URL:
+    raise ValueError("A variável de ambiente DATABASE_URL não foi definida.")
+
+# Cria o engine para o banco de dados 
+engine = create_engine(DATABASE_URL)
 
 # Cria uma fábrica de sessões
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
