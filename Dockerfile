@@ -4,6 +4,7 @@ FROM python:3.11-slim-bookworm AS builder
 # Diretório de trabalho
 WORKDIR /app
 
+
 # Instala o Google Chrome e outras dependências de sistema
 # Todos esses comandos rodam em um ambiente com permissão de escrita
 RUN apt-get update && \
@@ -23,6 +24,9 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
+# Cria o usuário 'appuser'
+RUN useradd --create-home appuser
+
 # Copia as dependências de sistema (Chrome) do estágio anterior
 COPY --from=builder /opt/google/chrome /opt/google/chrome
 COPY --from=builder /usr/share/keyrings/google-chrome-keyring.gpg /usr/share/keyrings/google-chrome-keyring.gpg
@@ -30,8 +34,11 @@ COPY --from=builder /usr/share/keyrings/google-chrome-keyring.gpg /usr/share/key
 # Copia as dependências Python instaladas do estágio anterior
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
-# Copia o código da sua aplicação
-COPY ./src ./src
+# Copia o código da sua aplicação e define o 'appuser' como o dono
+COPY --chown=appuser:appuser ./src ./src
+
+# Muda para o usuário 'appuser'
+USER appuser
 
 # Expõe a porta que a aplicação irá rodar
 EXPOSE 10000
