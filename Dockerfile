@@ -37,6 +37,9 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 # Copia o código da sua aplicação e define o 'appuser' como o dono
 COPY --chown=appuser:appuser ./src ./src
 
+# Define o PYTHONPATH para o diretório de trabalho atual (/app).
+ENV PYTHONPATH=.
+
 # Muda para o usuário 'appuser'
 USER appuser
 
