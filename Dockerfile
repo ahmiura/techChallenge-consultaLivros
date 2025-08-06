@@ -34,6 +34,9 @@ COPY --from=builder /usr/share/keyrings/google-chrome-keyring.gpg /usr/share/key
 # Copia as dependências Python instaladas do estágio anterior
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
+# Copia os execs (uvicorn)
+COPY --from=builder /usr/local/bin /usr/local/bin
+
 # Copia o código da sua aplicação e define o 'appuser' como o dono
 COPY --chown=appuser:appuser ./src ./src
 

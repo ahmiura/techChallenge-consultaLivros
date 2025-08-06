@@ -5,11 +5,10 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from datetime import datetime
 
-# Configura o logger para escrever em um arquivo
+# Configura o logger 
 logging.basicConfig(
-    filename="api_requests.log",
     level=logging.INFO,
-    format='%(message)s' 
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
