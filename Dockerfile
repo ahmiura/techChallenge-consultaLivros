@@ -26,6 +26,9 @@ RUN apt-get update && \
 # Cria o usuário 'appuser'
 RUN useradd --create-home appuser
 
+# Cria o diretório para os modelos de ML e define o 'appuser' como dono
+RUN mkdir /app/modelos_ml && chown appuser:appuser /app/modelos_ml
+
 # Copia as dependências Python instaladas do estágio anterior
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 

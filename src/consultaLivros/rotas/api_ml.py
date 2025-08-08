@@ -34,8 +34,10 @@ def carregar_modelo_e_encoder():
             modelo_cache["tfidf"] = pickle.load(tfidf_file)
 
         print("Modelo e encoder carregados com sucesso.")
+        return status.HTTP_200_OK
     except FileNotFoundError:
         print("Modelo ou encoder não encontrados. Certifique-se de que foram treinados e salvos corretamente.")
+        return status.HTTP_404_NOT_FOUND
     
 
 router = APIRouter(
@@ -72,7 +74,6 @@ async def train_model(background_tasks: BackgroundTasks):
     """Treina o modelo de machine learning e salva os artefatos."""
     try:
         background_tasks.add_task(treinar_e_salvar_modelo)
-        carregar_modelo_e_encoder()  # Recarrega após o treinamento
         return {"message": "Processo do treino do Modelo iniciado em segundo plano."}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -84,10 +85,12 @@ async def get_prediction(livro_input: LivroBase):
     """Recebe os dados de um livro e retorna uma predição de preço."""
 
     if modelo_cache["modelo"] is None or modelo_cache["encoder"] is None or modelo_cache["tfidf"] is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail="Modelo não está carregado. Verifique os logs do servidor."
-        )
+        retorno = carregar_modelo_e_encoder()
+        if retorno == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+                detail="Modelo não está carregado. Verifique os logs do servidor."
+            )
 
     # A lógica de predição continua exatamente a mesma
     input_df = pd.DataFrame([livro_input.model_dump()])
