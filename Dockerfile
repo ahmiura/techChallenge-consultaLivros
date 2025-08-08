@@ -1,19 +1,8 @@
-# Estágio 1: Builder - Instala dependências de sistema e Python
+# Estágio 1: Builder - Instala dependências Python
 FROM python:3.11-slim-bookworm AS builder
 
 # Diretório de trabalho
 WORKDIR /app
-
-
-# Instala o Google Chrome e outras dependências de sistema
-# Todos esses comandos rodam em um ambiente com permissão de escrita
-RUN apt-get update && \
-    apt-get install -y wget gnupg && \
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg && \
-    sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable && \
-    rm -rf /var/lib/apt/lists/*
 
 # Copia o arquivo de dependências e instala os pacotes Python
 COPY requirements.txt .
@@ -24,12 +13,18 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
+# Instala o Google Chrome e suas dependências de sistema
+# Isso garante que todas as bibliotecas compartilhadas (.so) estejam presentes
+RUN apt-get update && \
+    apt-get install -y wget gnupg --no-install-recommends && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg && \
+    sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 # Cria o usuário 'appuser'
 RUN useradd --create-home appuser
-
-# Copia as dependências de sistema (Chrome) do estágio anterior
-COPY --from=builder /opt/google/chrome /opt/google/chrome
-COPY --from=builder /usr/share/keyrings/google-chrome-keyring.gpg /usr/share/keyrings/google-chrome-keyring.gpg
 
 # Copia as dependências Python instaladas do estágio anterior
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
