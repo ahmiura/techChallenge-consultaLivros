@@ -33,9 +33,3 @@ async def create_user(dados_usuario: schemas_usuario.Usuario, db: Session = Depe
     usuario = cria_usuario(db=db, username=dados_usuario.username, hashed_password=hashed_password)
 
     return usuario
-
-
-@router.get("/me", response_model=schemas_usuario.UsuarioResponse)
-async def read_users_me(current_user: schemas_usuario.UsuarioResponse = Depends(get_current_user)):
-    """Retorna os dados do usuário atualmente autenticado."""
-    return current_user
