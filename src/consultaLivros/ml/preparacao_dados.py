@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import OneHotEncoder
 from sqlalchemy.orm import Session
-from typing import Tuple, Optional
+from sqlalchemy.exc import SQLAlchemyError
 from ..modelos import livros as modelo_livros
 
 # Configure logging
@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def preparar_dados_livros(db: Session) -> Tuple[pd.DataFrame, Optional[OneHotEncoder], Optional[TfidfVectorizer]]:
-    """
+    """Busca os dados dos livros no banco, realiza o pré-processamento e retorna
     Busca os dados dos livros no banco, realiza o pré-processamento e retorna
     um DataFrame de features junto com os transformadores (encoder e TF-IDF).
 
@@ -62,7 +62,10 @@ def preparar_dados_livros(db: Session) -> Tuple[pd.DataFrame, Optional[OneHotEnc
 
         return features_df, encoder, tfidf
 
+    except SQLAlchemyError as e:
+        logging.error(f"Erro de banco de dados ao preparar os dados: {e}", exc_info=True)
+        return pd.DataFrame(), None, None
     except Exception as e:
-        logging.error(f"Erro ao preparar os dados dos livros: {e}", exc_info=True)
+        logging.error(f"Erro inesperado ao preparar os dados dos livros: {e}", exc_info=True)
         # Retorna vazio em caso de erro para não quebrar o pipeline
         return pd.DataFrame(), None, None

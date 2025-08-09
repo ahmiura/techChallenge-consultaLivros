@@ -22,6 +22,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base declarativa que será usada por todos os modelos
 Base = declarative_base()
 
+def cria_banco():
+    """
+    Cria todas as tabelas no banco de dados definidas pelos modelos SQLAlchemy
+    que herdam de Base. Esta função é chamada na inicialização da aplicação
+    para garantir que o schema do banco de dados esteja pronto.
+    """
+    Base.metadata.create_all(bind=engine)
+
 
 # Função para obter uma sessão do banco de dados
 def get_db():
