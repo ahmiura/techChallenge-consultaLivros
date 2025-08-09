@@ -1,32 +1,37 @@
 import streamlit as st
 import pandas as pd
-import json
-
-LOG_FILE = "api_requests.log"
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
 st.set_page_config(layout="wide", page_title="Dashboard de Uso da API")
 
 st.title("📊 Dashboard de Monitoramento da API de Livros")
 
-def load_logs():
-    """Carrega os logs do arquivo e os converte em um DataFrame do Pandas."""
-    logs = []
-    try:
-        with open(LOG_FILE, 'r') as f:
-            for line in f:
-                try:
-                    logs.append(json.loads(line))
-                except json.JSONDecodeError:
-                    # Ignora linhas mal formatadas
-                    pass
-    except FileNotFoundError:
-        st.error(f"Arquivo de log '{LOG_FILE}' não encontrado. A API já foi executada?")
+# Carrega as variáveis de ambiente do arquivo .env (para desenvolvimento local)
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+@st.cache_data(ttl=60)  # Adiciona cache para não consultar o DB a cada interação
+def load_logs_from_db():
+    """Carrega os logs do banco de dados e os converte em um DataFrame."""
+    if not DATABASE_URL:
+        st.error("A variável de ambiente DATABASE_URL não está configurada.")
         return pd.DataFrame()
-        
-    return pd.DataFrame(logs)
+
+    try:
+        engine = create_engine(DATABASE_URL)
+        # Uma query simples é suficiente para o dashboard
+        query = "SELECT timestamp, method, path, status_code, process_time_ms FROM log_requests ORDER BY timestamp DESC"
+        df = pd.read_sql_query(query, engine)
+        return df
+    except Exception as e:
+        st.error(f"Erro ao conectar ou buscar dados do banco: {e}")
+        return pd.DataFrame()
 
 # Carrega os dados
-df = load_logs()
+df = load_logs_from_db()
 
 if not df.empty:
     # Converte o timestamp para o formato datetime

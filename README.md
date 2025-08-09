@@ -4,7 +4,6 @@
 O projeto **Consulta Livros** é uma aplicação que demonstra o ciclo de vida de um projeto de dados, desde a coleta (web scraping) até a disponibilização de um modelo de Machine Learning via API. A aplicação realiza a raspagem de dados do site `books.toscrape.com`, armazena as informações em um banco de dados PostgreSQL e as expõe através de uma API RESTful construída com FastAPI.
 
 Além disso, o projeto inclui um pipeline de Machine Learning com `scikit-learn` para prever a avaliação de livros (classificando-os como "bons" ou "ruins"). O sistema é complementado por monitoramento, que inclui logs estruturados em JSON e um dashboard analítico interativo construído com Streamlit para visualização de métricas da API.
-
 2. Arquitetura
 O projeto utiliza uma arquitetura desacoplada e organizada, seguindo as melhores práticas de Clean Code para projetos Python.
 
@@ -134,8 +133,15 @@ A seguir, a lista de endpoints disponíveis:
 | Método | Endpoint                          | Descrição                                                 | Autenticação       |
 | :----- | :-------------------------------- | :-------------------------------------------------------- | :----------------- |
 | POST   | `/api/v1/raspagem/trigger`        | Dispara o processo de raspagem em segundo plano.          | Sim (Bearer Token) |
-| GET    | `/api/v1/raspagem/status/{id_tarefa}` | Verifica o status de uma tarefa de raspagem.              | 
-Nenhuma  |
+| GET    | `/api/v1/raspagem/status/{id_tarefa}` | Verifica o status de uma tarefa de raspagem.              | Sim (Bearer Token) |
+
+### Administração
+| Método | Endpoint                          | Descrição                                                 | Autenticação       |
+| :----- | :-------------------------------- | :-------------------------------------------------------- | :----------------- |
+| DELETE | `/api/v1/admin/limpa-tabela-livros` | Deleta todos os registros da tabela de livros.            | Sim (Bearer Token) |
+| DELETE | `/api/v1/admin/limpa-tabela-usuarios` | Deleta todos os registros da tabela de usuários.          | Sim (Bearer Token) |
+| DELETE | `/api/v1/admin/limpa-tabela-tarefas`  | Deleta todos os registros da tabela de tarefas.           | Sim (Bearer Token) |
+| DELETE | `/api/v1/admin/limpa-usuario/{id}`    | Deleta um usuário específico pelo ID.                     | Sim (Bearer Token) |
 
 ### Machine Learning
 | Método | Endpoint                  | Descrição                                                          | Autenticação       |

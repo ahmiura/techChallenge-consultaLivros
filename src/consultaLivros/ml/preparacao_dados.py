@@ -3,16 +3,16 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import OneHotEncoder
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 from typing import Tuple, Optional
-from ..modelos import livros as modelo_livros
+from ..schemas.livros import LivroBase
+from ..repositorios import livros_repositorio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def preparar_dados_livros(db: Session) -> Tuple[pd.DataFrame, Optional[OneHotEncoder], Optional[TfidfVectorizer]]:
-    """Busca os dados dos livros no banco, realiza o pré-processamento e retorna
+    """
     Busca os dados dos livros no banco, realiza o pré-processamento e retorna
     um DataFrame de features junto com os transformadores (encoder e TF-IDF).
 
@@ -27,9 +27,8 @@ def preparar_dados_livros(db: Session) -> Tuple[pd.DataFrame, Optional[OneHotEnc
         Retorna (pd.DataFrame(), None, None) se não houver livros ou em caso de erro.
     """
     try:
-        # Usar read_sql_query é mais direto e potencialmente mais eficiente em memória
-        query = db.query(modelo_livros.Livro).statement
-        df = pd.read_sql_query(query, db.bind)
+        # Acesso ao banco de dados agora é feito através do repositório
+        df = livros_repositorio.busca_todos_livros_para_dataframe(db)
 
         if df.empty:
             logging.warning("Nenhum livro encontrado no banco de dados para preparação.")
@@ -63,10 +62,37 @@ def preparar_dados_livros(db: Session) -> Tuple[pd.DataFrame, Optional[OneHotEnc
 
         return features_df, encoder, tfidf
 
-    except SQLAlchemyError as e:
-        logging.error(f"Erro de banco de dados ao preparar os dados: {e}", exc_info=True)
-        return pd.DataFrame(), None, None
     except Exception as e:
         logging.error(f"Erro inesperado ao preparar os dados dos livros: {e}", exc_info=True)
         # Retorna vazio em caso de erro para não quebrar o pipeline
         return pd.DataFrame(), None, None
+
+
+def preparar_input_para_predicao(
+    livro_input: LivroBase,
+    encoder: OneHotEncoder,
+    tfidf: TfidfVectorizer,
+    colunas_modelo: list
+) -> pd.DataFrame:
+    """
+    Prepara um único registro (livro) para predição usando os transformadores treinados.
+    Garante que as colunas do input correspondam exatamente às do modelo.
+    """
+    input_df = pd.DataFrame([livro_input.model_dump()])
+
+    # Extrai e transforma as features
+    features_numericas = input_df[['preco', 'rating', 'disponibilidade']].copy()
+    features_numericas['disponibilidade'] = features_numericas['disponibilidade'].astype(int)
+
+    categorias_encoded = encoder.transform(input_df[['categoria']])
+    categorias_df = pd.DataFrame(categorias_encoded, columns=encoder.get_feature_names_out(['categoria']))
+
+    titulos_features = tfidf.transform(input_df['titulo'])
+    titulos_df = pd.DataFrame(titulos_features.toarray(), columns=tfidf.get_feature_names_out())
+
+    # Concatena e alinha as colunas com as do modelo treinado
+    input_completo_df = pd.concat([features_numericas, categorias_df, titulos_df], axis=1)
+    
+    input_final_df = input_completo_df.reindex(columns=colunas_modelo, fill_value=0)
+    
+    return input_final_df

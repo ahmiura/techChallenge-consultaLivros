@@ -14,3 +14,18 @@ def cria_usuario(db: Session, username: str, hashed_password: str):
 def busca_usuario(db: Session, username: str):
     """Obtém um usuário pelo nome de usuário."""
     return db.query(Usuario).filter(Usuario.username == username).first()
+
+def deleta_usuario_por_id(db: Session, usuario_id: int):
+    """Deleta um usuário pelo ID."""
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not usuario:
+        return None
+    db.delete(usuario)
+    db.commit()
+    return usuario 
+
+def deleta_todos_usuarios(db: Session):
+    """Deleta todos os usuários no banco de dados."""
+    resultado_query = db.query(Usuario).delete()
+    db.commit()
+    return resultado_query

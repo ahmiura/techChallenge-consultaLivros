@@ -11,3 +11,4 @@ scikit-learn
 pandas
 streamlit
 psycopg2-binary
+apscheduler

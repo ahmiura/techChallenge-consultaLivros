@@ -60,7 +60,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 
 @router.post("/auth/refresh", response_model=schemas_token.Token)
-async def refresh_access_token(request: schemas_token.RefreshTokenRequest):
+async def refresh_access_token(
+    request: schemas_token.RefreshTokenRequest,
+    db: Session = Depends(get_db)
+):
     """
     Gera um novo par de tokens (acesso e atualização) a partir de um refresh token válido.
     Isso implementa a rotação de tokens: o refresh token antigo é invalidado (implicitamente,
@@ -68,13 +71,21 @@ async def refresh_access_token(request: schemas_token.RefreshTokenRequest):
     """
     refresh_token = request.refresh_token
     try:
+        # Decodifica o token para obter o payload
         payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise refresh_exception
+
+        # VERIFICAÇÃO DE SEGURANÇA: Garante que o usuário do token ainda existe no banco.
+        user = busca_usuario(db, username=username)
+        if not user:
+            raise refresh_exception
+
     except JWTError:
         raise refresh_exception
 
+    # Cria novos tokens apenas se o usuário for válido
     access_token = create_access_token(
         data={"sub": username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )

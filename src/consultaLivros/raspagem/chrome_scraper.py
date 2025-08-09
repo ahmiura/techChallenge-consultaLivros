@@ -64,7 +64,7 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
     Configura o Selenium, raspa os dados, salva no banco e atualiza o status da tarefa.
     """
     driver = _setup_driver()
-    dados_todos_os_livros = []
+    total_livros_encontrados = 0
 
     try:
         with SessionLocal() as db:
@@ -94,25 +94,24 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
 
             for categoria in categorias_para_raspar:
                 logging.info(f"--- INICIANDO RASPAGEM DA CATEGORIA: {categoria['nome']} ---")
-                livros_da_categoria = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
-                dados_todos_os_livros.extend(livros_da_categoria)
-                logging.info(f"Total de {len(livros_da_categoria)} livros encontrados em '{categoria['nome']}'.")
+                livros_desta_categoria = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
+                
+                if livros_desta_categoria:
+                    logging.info(f"Salvando {len(livros_desta_categoria)} livros da categoria '{categoria['nome']}' no banco de dados.")
+                    salva_dados_livros(db, livros_desta_categoria)
+                    total_livros_encontrados += len(livros_desta_categoria)
+                else:
+                    logging.warning(f"Nenhum livro encontrado na categoria '{categoria['nome']}'.")
 
-            logging.info(f"Raspagem finalizada. Total de {len(dados_todos_os_livros)} livros encontrados.")
+            logging.info(f"Raspagem finalizada. Total de {total_livros_encontrados} livros encontrados e salvos.")
 
-            # 3. SALVAR DADOS E ATUALIZAR TAREFA PARA "CONCLUÍDA"
-            if dados_todos_os_livros:
-                logging.info("Iniciando o salvamento dos dados no banco de dados...")
-                salva_dados_livros(db, dados_todos_os_livros)
-                logging.info("Dados salvos com sucesso no banco de dados.")
-            
+            # 3. ATUALIZAR TAREFA PARA "CONCLUÍDA"
             if id_tarefa:
-                atualiza_tarefa(db, id_tarefa, estado="CONCLUIDA", resultado={"total_encontrado": len(dados_todos_os_livros)})
+                atualiza_tarefa(db, id_tarefa, estado="CONCLUIDA", resultado={"total_encontrado": total_livros_encontrados})
                 logging.info(f"Tarefa {id_tarefa} concluída com sucesso.")
-            
             db.commit()
 
-        return {"total_encontrado": len(dados_todos_os_livros)}
+        return {"total_encontrado": len(total_livros_encontrados)}
     
     except Exception as e:
         logging.error(f"Erro ao rodar o scraper: {e}", exc_info=True)
