@@ -18,7 +18,11 @@ modelo_cache = {
 }
 
 def carregar_modelo_e_encoder():
-    """Carrega o modelo e o encoder do disco."""
+    """
+    Carrega o modelo, o encoder e o vetorizador TF-IDF do disco para o cache.
+    Levanta um FileNotFoundError se algum arquivo não for encontrado.
+    Esta função é chamada na inicialização da aplicação (lifespan).
+    """
     modelos_dir = "modelos_ml"
     caminho_modelo = os.path.join(modelos_dir, 'modelo_livros.pkl')
     caminho_encoder = os.path.join(modelos_dir, 'encoder_livros.pkl')
@@ -34,11 +38,40 @@ def carregar_modelo_e_encoder():
             modelo_cache["tfidf"] = pickle.load(tfidf_file)
 
         print("Modelo e encoder carregados com sucesso.")
-        return status.HTTP_200_OK
     except FileNotFoundError:
         print("Modelo ou encoder não encontrados. Certifique-se de que foram treinados e salvos corretamente.")
-        return status.HTTP_404_NOT_FOUND
+        # Limpa o cache para garantir um estado consistente
+        modelo_cache["modelo"] = None
+        modelo_cache["encoder"] = None
+        modelo_cache["tfidf"] = None
+
+
+def _preparar_input_para_predicao(livro_input: LivroBase, cache: dict) -> pd.DataFrame:
+    """
+    Prepara o DataFrame de entrada para a predição usando os artefatos em cache.
+    """
+    input_df = pd.DataFrame([livro_input.model_dump()])
+
+    # Extrai e transforma as features
+    features_numericas = input_df[['preco', 'rating', 'disponibilidade']].copy()
+    features_numericas['disponibilidade'] = features_numericas['disponibilidade'].astype(int)
+
+    encoder = cache["encoder"]
+    categorias_encoded = encoder.transform(input_df[['categoria']])
+    categorias_df = pd.DataFrame(categorias_encoded, columns=encoder.get_feature_names_out(['categoria']))
+
+    tfidf = cache["tfidf"]
+    titulos_features = tfidf.transform(input_df['titulo'])
+    titulos_df = pd.DataFrame(titulos_features.toarray(), columns=tfidf.get_feature_names_out())
+
+    # Concatena e alinha as colunas com as do modelo treinado
+    input_completo_df = pd.concat([features_numericas, categorias_df, titulos_df], axis=1)
     
+    modelo = cache["modelo"]
+    colunas_modelo = modelo.feature_names_in_
+    input_final_df = input_completo_df.reindex(columns=colunas_modelo, fill_value=0)
+    
+    return input_final_df
 
 router = APIRouter(
     prefix="/api/v1/ml",
@@ -73,53 +106,35 @@ async def get_training_data(db: Session = Depends(get_db)):
 async def train_model(background_tasks: BackgroundTasks):
     """Treina o modelo de machine learning e salva os artefatos."""
     try:
-        background_tasks.add_task(treinar_e_salvar_modelo)
+        # A tarefa em segundo plano agora também atualiza o cache em memória
+        background_tasks.add_task(treinar_e_salvar_modelo, cache_para_atualizar=modelo_cache)
         return {"message": "Processo do treino do Modelo iniciado em segundo plano."}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # O endpoint de predição agora usa os modelos carregados do cache
-@router.post("/predictions")
+@router.post("/predictions", response_model=dict)
 async def get_prediction(livro_input: LivroBase):
-    """Recebe os dados de um livro e retorna uma predição de preço."""
+    """Recebe os dados de um livro e retorna uma predição de rating (bom/ruim)."""
 
-    if modelo_cache["modelo"] is None or modelo_cache["encoder"] is None or modelo_cache["tfidf"] is None:
-        retorno = carregar_modelo_e_encoder()
-        if retorno == status.HTTP_404_NOT_FOUND:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-                detail="Modelo não está carregado. Verifique os logs do servidor."
-            )
-
-    # A lógica de predição continua exatamente a mesma
-    input_df = pd.DataFrame([livro_input.model_dump()])
-
-    # Processa as colunas de texto e numéricas
-    features_numericas = input_df[['preco', 'rating', 'disponibilidade']].copy()
-    features_numericas['disponibilidade'] = features_numericas['disponibilidade'].astype(int)
-
-    # Processa a feature de categoria com o OneHotEncoder JÁ TREINADO    
-    encoder = modelo_cache["encoder"]
-    categorias_encoded = encoder.transform(input_df[['categoria']])
-    categorias_df = pd.DataFrame(categorias_encoded, columns=encoder.get_feature_names_out(['categoria']))
+    if modelo_cache["modelo"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+            detail="Modelo não está carregado. Treine o modelo ou verifique os logs do servidor."
+        )
     
-    # Processa a feature de título com o TF-IDF JÁ TREINADO
-    tfidf = modelo_cache["tfidf"]
-    titulos_features = tfidf.transform(input_df['titulo'])
-    titulos_df = pd.DataFrame(titulos_features.toarray(), columns=tfidf.get_feature_names_out())
-
-    # Concatena todas as features processadas em um único DataFrame
-    input_df = pd.concat([features_numericas, categorias_df, titulos_df], axis=1)
-    
-    model = modelo_cache["modelo"]
-    X_train_columns = model.feature_names_in_
-    input_df_processed = input_df.reindex(columns=X_train_columns, fill_value=0)
-    
-    # Faz a predição
-    prediction = model.predict(input_df_processed)
-
-    predicted_class = int(prediction[0])
+    try:
+        # Prepara os dados de entrada usando a função auxiliar
+        input_df_processed = _preparar_input_para_predicao(livro_input, modelo_cache)
+        
+        # Faz a predição
+        model = modelo_cache["modelo"]
+        prediction = model.predict(input_df_processed)
+        predicted_class = int(prediction[0])
+    except Exception as e:
+        # Captura possíveis erros durante o pré-processamento ou predição
+        raise HTTPException(status_code=400, detail=f"Erro ao processar os dados de entrada: {e}")
     
     return {
         "livro": livro_input.titulo, 

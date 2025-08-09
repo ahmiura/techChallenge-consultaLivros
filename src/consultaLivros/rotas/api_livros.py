@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 from ..modelos import livros as modelo_livros
 from ..schemas import livros as schemas_livros
 from ..db.database import get_db
@@ -16,22 +15,34 @@ router = APIRouter(
 
 
 @router.get("/books", response_model=List[schemas_livros.Livro])
-async def get_livros(db: Session = Depends(get_db)):
-    """Lista todos os livros disponíveis na base de dados (requer autenticação JWT)."""
-    todos_livros = db.query(modelo_livros.Livro).all()
+async def get_livros(db: Session = Depends(get_db), skip: int = 0, limit: int = 100):
+    """
+    Lista todos os livros disponíveis na base de dados com paginação.
+    """
+    todos_livros = db.query(modelo_livros.Livro).offset(skip).limit(limit).all()
     return todos_livros
 
 
 @router.get("/books/search", response_model=List[schemas_livros.Livro])
-async def search_livros(title: str, category: str, db: Session = Depends(get_db)):
-    """Busca livros por título e categoria (requer autenticação JWT)."""
+async def search_livros(
+    db: Session = Depends(get_db),
+    title: Optional[str] = None,
+    category: Optional[str] = None
+):
+    """
+    Busca livros por título e/ou categoria. Pelo menos um dos dois deve ser fornecido.
+    """
+    if not title and not category:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Forneça um título ou uma categoria para a busca."
+        )
+
     query = db.query(modelo_livros.Livro)
     if title:
         query = query.filter(modelo_livros.Livro.titulo.ilike(f"%{title}%"))
     if category:
         query = query.filter(modelo_livros.Livro.categoria.ilike(f"%{category}%"))
-    
-    print(f"Query: {query}")
     livros_encontrados = query.all()
     return livros_encontrados
 
@@ -78,48 +89,46 @@ async def health_check():
 
 @router.get("/stats/overview", response_model=dict)
 async def get_overview_stats(db: Session = Depends(get_db)):
-    """Obtém estatísticas gerais da base de dados (requer autenticação JWT)."""
-    # Obtém o total de livros e categorias
-    total_livros = db.query(modelo_livros.Livro).count()
-
-    # Obtém o preço médio dos livros
-    preco_medio = db.query(func.avg(modelo_livros.Livro.preco)).scalar() or 0.0
-
-    # Obtém a distribuição de ratings
-    rating_query = db.query(modelo_livros.Livro.rating, func.count(modelo_livros.Livro.rating)).group_by(modelo_livros.Livro.rating).all()
+    """Obtém estatísticas gerais da base de dados de forma otimizada."""
+    # Query 1: Obter total de livros e preço médio em uma única consulta
+    geral_stats = db.query(
+        func.count(modelo_livros.Livro.id),
+        func.avg(modelo_livros.Livro.preco)
+    ).one()
+    total_livros, preco_medio = geral_stats
+    
+    # Query 2: Obter a distribuição de ratings
+    rating_query = db.query(
+        modelo_livros.Livro.rating, 
+        func.count(modelo_livros.Livro.id)
+    ).group_by(modelo_livros.Livro.rating).all()
     distrib_ratings = {rating: count for rating, count in rating_query}
     
-    stats = {
+    return {
         "total_livros": total_livros,
-        "preco_medio": preco_medio,
+        "preco_medio": preco_medio or 0.0,
         "distribuicao_ratings": distrib_ratings
     }
-    
-    return stats
 
 
 @router.get("/stats/categories", response_model=dict)
-async def get_category_stats(db:Session = Depends(get_db)):
-    """Obtém estatísticas por categoria (requer autenticação JWT)."""
-    # Obtém todas as categorias
-    categorias = db.query(modelo_livros.Livro.categoria).distinct().all()
-    categorias = [categoria[0] for categoria in categorias]
-
-    stats_por_categoria = {}
+async def get_category_stats(db: Session = Depends(get_db)):
+    """Obtém estatísticas por categoria de forma otimizada, evitando o problema N+1."""
+    # Query 1: Obter contagem de livros e preço médio por categoria
+    stats_query = db.query(
+        modelo_livros.Livro.categoria,
+        func.count(modelo_livros.Livro.id),
+        func.avg(modelo_livros.Livro.preco)
+    ).group_by(modelo_livros.Livro.categoria).all()
     
-    for categoria in categorias:
-        total_livros = db.query(modelo_livros.Livro).filter(modelo_livros.Livro.categoria == categoria).count()
-        preco_medio = db.query(func.avg(modelo_livros.Livro.preco)).filter(modelo_livros.Livro.categoria == categoria).scalar() or 0.0
-        rating_query = db.query(modelo_livros.Livro.rating, func.count(modelo_livros.Livro.rating)).filter(modelo_livros.Livro.categoria == categoria).group_by(modelo_livros.Livro.rating).all()
-        distrib_ratings = {rating: count for rating, count in rating_query}
-        
-        stats_por_categoria[categoria] = {
-            "total_livros": total_livros,
-            "preco_medio": preco_medio,
-            "distribuicao_ratings": distrib_ratings
-        }
+    stats_por_categoria = {
+        cat: {"total_livros": count, "preco_medio": avg_price or 0.0, "distribuicao_ratings": {}}
+        for cat, count, avg_price in stats_query
+    }
+    # Query 2: Obter distribuição de ratings por categoria
+    rating_dist_query = db.query(modelo_livros.Livro.categoria, modelo_livros.Livro.rating, func.count(modelo_livros.Livro.id)).group_by(modelo_livros.Livro.categoria, modelo_livros.Livro.rating).all()
+    for categoria, rating, count in rating_dist_query:
+        if categoria in stats_por_categoria:
+            stats_por_categoria[categoria]["distribuicao_ratings"][rating] = count
     
     return stats_por_categoria
-
-
-

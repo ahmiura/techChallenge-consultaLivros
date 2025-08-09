@@ -7,10 +7,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 
-def treinar_e_salvar_modelo():
+def treinar_e_salvar_modelo(cache_para_atualizar: dict | None = None):
     """
     Busca dados, divide em treino/teste, avalia o modelo e,
-    finalmente, retreina com todos os dados e salva os artefatos.
+    finalmente, retreina com todos os dados, salva os artefatos e
+    opcionalmente atualiza um cache em memória.
     """
     print("Iniciando o treinamento do modelo de machine learning...")
 
@@ -76,7 +77,15 @@ def treinar_e_salvar_modelo():
     with open(caminho_tfidf, 'wb') as f:
         pickle.dump(tfidf, f)
 
-    print("Modelo treinado e salvo com sucesso.")
+    # Após salvar, atualiza o cache em memória se ele foi passado como argumento
+    if cache_para_atualizar is not None:
+        print("Atualizando o modelo em cache...")
+        cache_para_atualizar["modelo"] = model
+        cache_para_atualizar["encoder"] = encoder
+        cache_para_atualizar["tfidf"] = tfidf
+        print("Cache do modelo atualizado com sucesso.")
+
+    print("Processo de treinamento e salvamento concluído.")
     return {"status": "sucesso", "modelo": caminho_modelo, "encoder": caminho_encoder}
 
 
