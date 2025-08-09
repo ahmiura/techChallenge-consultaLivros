@@ -9,6 +9,5 @@ python-multipart
 passlib[bcrypt]
 scikit-learn
 pandas
-prometheus_fastapi_instrumentator
 streamlit
 psycopg2-binary

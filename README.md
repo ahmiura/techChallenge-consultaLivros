@@ -9,7 +9,7 @@ O projeto utiliza uma arquitetura de microsserviços desacoplada e organizada, s
 
 API (FastAPI): O núcleo da aplicação, responsável por servir os endpoints, autenticação e validação de dados.
 
-Banco de Dados (SQLAlchemy + SQLite): Camada de persistência para armazenar os dados dos livros e usuários. A configuração é centralizada e os modelos são desacoplados.
+Banco de Dados (SQLAlchemy + PostgreSQL): Camada de persistência para armazenar os dados dos livros e usuários. A configuração é centralizada e os modelos são desacoplados.
 
 Padrão de Repositório: A lógica de acesso ao banco de dados é abstraída na camada de repositorios, separando a lógica de negócio das operações de banco.
 
@@ -26,6 +26,8 @@ Siga os passos abaixo para configurar o ambiente de desenvolvimento local.
 
 Pré-requisitos
 Python 3.10 ou superior
+
+Docker e Docker Compose (Recomendado para rodar o PostgreSQL)
 
 Git
 
@@ -49,18 +51,18 @@ source venv/bin/activate
 # Ativar no Windows
 .\venv\Scripts\activate
 Instalar as Dependências:
-Primeiro, gere o arquivo requirements.txt se ele não existir, com o ambiente ativado:
+Com o ambiente virtual ativado, instale as dependências do projeto:
 
 Bash
-
-pip freeze > requirements.txt
-Em seguida, instale as dependências:
-
-Bash
-
 pip install -r requirements.txt
-Configurar Variáveis de Ambiente (Opcional):
-Se você moveu os segredos para um arquivo .env, crie-o na raiz do projeto. Caso contrário, certifique-se de que as variáveis de segurança em src/autenticacao/seguranca.py estão definidas.
+
+Configurar Variáveis de Ambiente:
+Crie um arquivo `.env` na raiz do projeto (no mesmo nível do `src/`) e adicione a URL de conexão do seu banco de dados PostgreSQL.
+
+```.env
+DATABASE_URL="postgresql://user:password@localhost:5432/database_name"
+```
+Substitua `user`, `password`, `localhost`, `5432` e `database_name` com as credenciais do seu banco.
 
 4. Instruções para Execução
 A aplicação é composta por dois serviços principais que devem ser executados em terminais separados.
@@ -92,25 +94,24 @@ Executar a Raspagem:
 
 Bash
 
-python -m src.raspagem.chrome_scraper
+python -m src.consultaLivros.raspagem.chrome_scraper
 Executar o Treinamento do Modelo:
 
 Bash
 
-python -m src.ia.treinamento
+python -m src.consultaLivros.ml.treinamento_modelo
 5. Documentação das Rotas da API
 A seguir, a lista de endpoints disponíveis, agrupados por funcionalidade.
 
 Autenticação
 Método	Endpoint	Descrição	Autenticação
 POST	/api/v1/auth/login	Autentica um usuário e retorna tokens de acesso e renovação.	Nenhuma
-POST	/api/v1/auth/refresh	Gera um novo token de acesso usando um token de renovação.	Nenhuma
 
 Exportar para as Planilhas
 Usuários
 Método	Endpoint	Descrição	Autenticação
 POST	/api/v1/usuarios/	Cria um novo usuário.	Nenhuma
-GET	/api/v1/users/me	Retorna os dados do usuário autenticado.	Sim (Bearer Token)
+GET	/api/v1/usuarios/me	Retorna os dados do usuário autenticado.	Sim (Bearer Token)
 
 Exportar para as Planilhas
 Livros
@@ -122,16 +123,16 @@ GET	/api/v1/livros/search	Busca livros por título e/ou categoria.	Sim (Bearer T
 Exportar para as Planilhas
 Raspagem de Dados
 Método	Endpoint	Descrição	Autenticação
-POST	/api/v1/scraping/trigger	Dispara o processo de raspagem em segundo plano.	Sim (Bearer Token)
-GET	/api/v1/scraping/status/{id_tarefa}	Verifica o status de uma tarefa de raspagem.	Sim (Bearer Token)
+POST	/api/v1/raspagem/trigger	Dispara o processo de raspagem em segundo plano.	Sim (Bearer Token)
+GET	/api/v1/raspagem/status/{id_tarefa}	Verifica o status de uma tarefa de raspagem.	Sim (Bearer Token)
 
 Exportar para as Planilhas
 Machine Learning
 Método	Endpoint	Descrição	Autenticação
 GET	/api/v1/ml/features	Retorna os dados formatados como features (sem o alvo).	Nenhuma
 GET	/api/v1/ml/training-data	Retorna o dataset completo para treinamento (features + alvo).	Nenhuma
-POST	/api/v1/ml/train	Dispara o treinamento do modelo em segundo plano.	Sim (Bearer Token)
-POST	/api/v1/ml/predictions	Recebe dados de um livro e retorna uma predição de rating.	Sim (Bearer Token)
+POST	/api/v1/ml/train	Dispara o treinamento do modelo em segundo plano.	Nenhuma
+POST	/api/v1/ml/predictions	Recebe dados de um livro e retorna uma predição de rating.	Nenhuma
 
 Exportar para as Planilhas
 6. Exemplos de Chamadas (cURL)
@@ -170,7 +171,9 @@ Bash
 
 curl -X 'POST' \
   'http://127.0.0.1:8000/api/v1/scraping/trigger' \
-  -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
+  'http://127.0.0.1:8000/api/v1/raspagem/trigger' \
+  -H 'Authorization: Bearer SEU_ACCESS_TOKEN' \
+  -d ''
 Resposta:
 
 JSON
@@ -179,13 +182,12 @@ JSON
     "id_tarefa": "e8a1b3f2-1c4d-4a3b-9d2c-8a1b3f2c4d5e",
     "message": "Processo de raspagem iniciado em segundo plano."
 }
-4. Fazer uma Predição de Rating (Rota Protegida):
+4. Fazer uma Predição de Rating (Rota Pública):
 
 Bash
 
 curl -X 'POST' \
   'http://127.0.0.1:8000/api/v1/ml/predictions' \
-  -H 'Authorization: Bearer SEU_ACCESS_TOKEN' \
   -H 'Content-Type: application/json' \
   -d '{
     "titulo": "A New Book About Python",

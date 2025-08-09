@@ -42,22 +42,32 @@ def treinar_e_salvar_modelo(cache_para_atualizar: dict | None = None):
     print(f"Dados divididos: {len(X_train)} para treino, {len(X_test)} para teste.")
 
     # Treinamento do modelo
-    model = RandomForestClassifier(
+    model_para_avaliacao = RandomForestClassifier(
         n_estimators=100,
         random_state=SEED,
         n_jobs=-1
     )
 
-    model.fit(X_train, y_train)
-    print("Modelo treinado com sucesso.")
+    model_para_avaliacao.fit(X_train, y_train)
+    print("Modelo para avaliação treinado com sucesso.")
 
     # Avaliação do modelo
-    predictions = model.predict(X_test)
+    predictions = model_para_avaliacao.predict(X_test)
 
     accuracy = accuracy_score(y_test, predictions)
     print(f"Acurácia: {accuracy:.2%}")
     print("\nRelatório de Classificação:")
     print(classification_report(y_test, predictions, zero_division=0))
+
+    # --- Retreinamento com todos os dados para o modelo final ---
+    print("\nRetreinando o modelo com todos os dados disponíveis...")
+    modelo_final = RandomForestClassifier(
+        n_estimators=100,
+        random_state=SEED,
+        n_jobs=-1
+    )
+    modelo_final.fit(X, y)
+    print("Modelo final treinado com sucesso.")
 
     # Salva o modelo e o encoder em arquivos
     modelo_dir = 'modelos_ml'
@@ -69,7 +79,7 @@ def treinar_e_salvar_modelo(cache_para_atualizar: dict | None = None):
 
     # Salvando o modelo e o encoder
     with open(caminho_modelo, 'wb') as model_file:
-        pickle.dump(model, model_file)
+        pickle.dump(modelo_final, model_file)
     
     with open(caminho_encoder, 'wb') as encoder_file:
         pickle.dump(encoder, encoder_file)
@@ -80,7 +90,7 @@ def treinar_e_salvar_modelo(cache_para_atualizar: dict | None = None):
     # Após salvar, atualiza o cache em memória se ele foi passado como argumento
     if cache_para_atualizar is not None:
         print("Atualizando o modelo em cache...")
-        cache_para_atualizar["modelo"] = model
+        cache_para_atualizar["modelo"] = modelo_final
         cache_para_atualizar["encoder"] = encoder
         cache_para_atualizar["tfidf"] = tfidf
         print("Cache do modelo atualizado com sucesso.")
