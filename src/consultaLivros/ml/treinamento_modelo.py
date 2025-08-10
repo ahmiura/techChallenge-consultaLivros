@@ -1,7 +1,5 @@
 import pickle
 import os
-from datetime import datetime
-from sqlalchemy.orm import Session
 from .preparacao_dados import preparar_dados_livros
 from ..db.database import SessionLocal
 from sklearn.ensemble import RandomForestClassifier
@@ -11,9 +9,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from joblib import Parallel, delayed
 from typing import Dict, Any
-
-# Importa o novo repositório para registrar os modelos
-from ..repositorios import registro_modelos_repositorio
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
