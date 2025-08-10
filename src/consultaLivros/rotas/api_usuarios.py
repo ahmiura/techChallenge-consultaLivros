@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from ..db.database import get_db
 from ..repositorios.usuarios_repositorio import cria_usuario, busca_usuario
 from ..autenticacao.seguranca import get_password_hash, get_current_user
-from ..schemas import usuario as schemas_usuario
+from ..schemas import usuario as schemas_usuario, token as schemas_token
 
 
 router = APIRouter(
@@ -36,8 +36,21 @@ async def create_user(dados_usuario: schemas_usuario.Usuario, db: Session = Depe
 
 
 @router.get("/me", response_model=schemas_usuario.UsuarioResponse)
-async def read_users_me(current_user: schemas_usuario.Usuario = Depends(get_current_user)):
+async def read_users_me(
+    db: Session = Depends(get_db),
+    token_data: schemas_token.TokenData = Depends(get_current_user)
+):
     """
     Retorna os dados do usuário autenticado.
     """
-    return current_user
+    # A dependência `get_current_user` retorna os dados do token (TokenData).
+    # Usamos o username desses dados para buscar o usuário completo no banco.
+    usuario = busca_usuario(db, username=token_data.username)
+    if not usuario:
+        # Esta verificação de segurança garante que o usuário do token ainda existe.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Não foi possível validar as credenciais",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return usuario

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.exc import SQLAlchemyError
 from ..modelos.livros import Livro
 from typing import List, Optional
@@ -122,7 +122,7 @@ def verificar_conexao_db(db: Session) -> bool:
     Retorna True se a conexão for bem-sucedida, False caso contrário.
     """
     try:
-        db.execute('SELECT 1')
+        db.execute(text('SELECT 1'))
         return True
     except SQLAlchemyError as e:
         logging.error(f"Falha na verificação de conexão com o banco de dados: {e}", exc_info=True)

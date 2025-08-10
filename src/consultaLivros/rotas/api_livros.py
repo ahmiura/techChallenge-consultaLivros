@@ -62,9 +62,9 @@ async def get_books_by_price_range(min_preco: float, max_preco: float, db: Sessi
 
 
 @router.get("/books/{book_id}", response_model=schemas_livros.Livro)
-async def get_livro(livro_id: int, db: Session = Depends(get_db)):
-    """Obtém detalhes de um livro específico pelo ID (requer autenticação JWT)."""
-    livro = livros_repositorio.busca_livro_por_id(db, livro_id=livro_id)
+async def get_book_by_id(book_id: int, db: Session = Depends(get_db)):
+    """Obtém detalhes de um livro específico pelo seu ID."""
+    livro = livros_repositorio.busca_livro_por_id(db, livro_id=book_id)
     if not livro:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Livro não encontrado")
     return livro
