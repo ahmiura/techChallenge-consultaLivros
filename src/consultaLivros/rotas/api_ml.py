@@ -29,7 +29,7 @@ modelo_cache: Dict[str, Any] = {
 def carregar_modelos_em_producao():
     """Carrega todos os modelos marcados como 'em_producao' para o cache."""
     logging.info("Carregando modelos em produção para o cache...")
-    db = SessionLocal()
+    db = get_db
     try:
         modelos_a_carregar = registro_modelos_repositorio.listar_modelos_em_producao(db)
         

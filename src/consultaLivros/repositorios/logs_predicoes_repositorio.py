@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from ..modelos.log_predicao import LogPredicao
-from ..esquemas.livros import LivroBase
+from ..schemas.livros import LivroBase
 
 def cria_log_predicao(db: Session, livro_input: LivroBase, predicao: int):
     """
