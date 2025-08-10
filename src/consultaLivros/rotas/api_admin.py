@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..db.database import get_db
-from ..repositorios import livros_repositorio, usuarios_repositorio, tarefas_repositorio
+from ..repositorios import livros_repositorio, usuarios_repositorio, tarefas_repositorio, registro_modelos_repositorio
 from ..autenticacao.seguranca import get_current_user
 from ..schemas import token as schemas_token
+from ..rotas.api_ml import carregar_modelos_em_producao
 
 
 router = APIRouter(
@@ -52,3 +53,45 @@ async def limpa_tabela_tarefas(db: Session = Depends(get_db), current_user: sche
     """
     tarefas_deletadas = tarefas_repositorio.deleta_todos_tarefas(db)
     return {"message": f"{tarefas_deletadas} tarefas foram deletadas com sucesso."} 
+
+
+@router.post("/promover-modelo/{nome_modelo}/{versao}", status_code=status.HTTP_200_OK)
+async def promover_modelo(
+    nome_modelo: str,
+    versao: str,
+    db: Session = Depends(get_db),
+    current_user: schemas_token.TokenData = Depends(get_current_user)
+):
+    """
+    Promove uma versão específica de um modelo para o ambiente de produção.
+    Isso o tornará o modelo padrão para predições e o carregará na memória.
+    Requer autenticação.
+    """
+    modelo_promovido = registro_modelos_repositorio.promover_modelo_para_producao(
+        db=db, nome_modelo=nome_modelo, versao=versao
+    )
+
+    if not modelo_promovido:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Modelo '{nome_modelo}' na versão '{versao}' não encontrado no registro."
+        )
+    
+    # Após promover no banco, instrui a aplicação a recarregar os modelos em memória.
+    # Isso garante que a mudança seja refletida imediatamente sem reiniciar o servidor.
+    try:
+        carregar_modelos_em_producao(db_session=db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Modelo promovido no banco, mas falha ao recarregar em memória: {e}"
+        )
+
+    return {
+        "message": "Modelo promovido com sucesso e recarregado na API.",
+        "modelo_em_producao": {
+            "nome": modelo_promovido.nome_modelo,
+            "versao": modelo_promovido.versao,
+            "metricas": modelo_promovido.metricas
+        }
+    }

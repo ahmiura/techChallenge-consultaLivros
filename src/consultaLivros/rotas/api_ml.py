@@ -4,7 +4,7 @@ from ..ml.preparacao_dados import preparar_dados_livros, preparar_input_para_pre
 from ..ml.treinamento_modelo import treinar_e_salvar_modelos
 from ..schemas.livros import LivroBase
 import pickle
-from ..db.database import get_db
+from ..db.database import get_db, SessionLocal
 import pandas as pd
 from typing import List, Dict, Any
 import os
@@ -26,10 +26,10 @@ modelo_cache: Dict[str, Any] = {
     "lock": Lock()  # Adiciona um lock para garantir acesso thread-safe ao cache
 }
 
-def carregar_modelos_em_producao():
+def carregar_modelos_em_producao(db_session: Session | None = None):
     """Carrega todos os modelos marcados como 'em_producao' para o cache."""
     logging.info("Carregando modelos em produção para o cache...")
-    db = get_db
+    db = db_session or SessionLocal()
     try:
         modelos_a_carregar = registro_modelos_repositorio.listar_modelos_em_producao(db)
         
@@ -65,8 +65,19 @@ def carregar_modelos_em_producao():
 
 
         logging.info(f"Carregados {len(modelos_carregados)} modelos em produção.")
+    except FileNotFoundError as e:
+        logging.error(f"Arquivo de modelo/artefato não encontrado: {e}. A predição pode falhar.")
+        # Limpa o cache para garantir estado consistente
+        with modelo_cache["lock"]:
+            modelo_cache["modelos"] = {}
+            modelo_cache["artefatos"] = {}
+
+    except Exception as e:
+        logging.error(f"Falha ao carregar modelos para o cache: {e}", exc_info=True)
+
     finally:
-        db.close()
+        if not db_session:
+            db.close()
 
 
 router = APIRouter(
