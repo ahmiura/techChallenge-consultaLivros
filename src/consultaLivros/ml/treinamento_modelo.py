@@ -79,7 +79,7 @@ def treinar_e_carregar_modelos_em_cache(cache: Dict[str, Any]):
         )
 
         # 4. Coleta dos modelos treinados e atualização do cache
-        modelos_treinados = {nome: modelo for nome, modelo in resultados}
+        modelos_treinados = {nome: modelo for nome, modelo, metricas in resultados}
         metricas_treinamento = {nome: metricas for nome, modelo, metricas in resultados}
         
         with cache["lock"]:
