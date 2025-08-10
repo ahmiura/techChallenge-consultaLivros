@@ -13,11 +13,6 @@ from threading import Lock
 from ..repositorios import logs_predicoes_repositorio
 from ..repositorios import registro_modelos_repositorio
 
-# Constantes para os caminhos dos modelos, facilitando a manutenção
-MODELOS_DIR = "modelos_ml"
-CAMINHO_MODELO = os.path.join(MODELOS_DIR, 'modelo_livros.pkl')
-CAMINHO_ENCODER = os.path.join(MODELOS_DIR, 'encoder_livros.pkl')
-CAMINHO_TFIDF = os.path.join(MODELOS_DIR, 'tfidf_livros.pkl')
 
 # Cache para armazenar o modelo e o encoder
 modelo_cache: Dict[str, Any] = {
