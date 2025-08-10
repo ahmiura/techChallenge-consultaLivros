@@ -1,14 +1,15 @@
 📚 Consulta Livros - API e Pipeline de ML
 
-1. Descrição do Projeto
+1. **Descrição do Projeto**
 O projeto **Consulta Livros** é uma aplicação que demonstra o ciclo de vida de um projeto de dados, desde a coleta (web scraping) até a disponibilização de um modelo de Machine Learning via API. A aplicação realiza a raspagem de dados do site `books.toscrape.com`, armazena as informações em um banco de dados PostgreSQL e as expõe através de uma API RESTful construída com FastAPI.
 
 Além disso, o projeto inclui um pipeline de Machine Learning com `scikit-learn` para prever a avaliação de livros (classificando-os como "bons" ou "ruins"). O sistema é complementado por monitoramento, que salva os logs de requisições em um banco de dados PostgreSQL, e um dashboard analítico interativo construído com Streamlit para visualização de métricas da API.
 
-2. Arquitetura
+
+2. **Arquitetura**
 O projeto utiliza uma arquitetura desacoplada e organizada, seguindo as melhores práticas de Clean Code para projetos Python.
 
-API (`FastAPI`): O núcleo da aplicação, responsável por servir os endpoints, autenticação e validação de dados.
+API (`FastAPI`): O core da aplicação, responsável por servir os endpoints, autenticação e validação de dados.
 
 Banco de Dados (`SQLAlchemy` + `PostgreSQL`): Camada de persistência para armazenar os dados dos livros e usuários. A configuração é centralizada e os modelos são desacoplados.
 
@@ -24,7 +25,8 @@ Monitoramento (`Logging` + `Streamlit`): Todas as requisições são logadas no 
 
 Tarefas Agendadas (`APScheduler`): Uma tarefa diária é executada para limpar registros antigos de logs e tarefas, mantendo a base de dados otimizada.
 
-3. Configuração do Ambiente Local
+
+3. **Configuração do Ambiente Local**
 Siga os passos abaixo para configurar o ambiente de desenvolvimento local.
 
 Pré-requisitos
@@ -69,14 +71,23 @@ DATABASE_URL="postgresql://user:password@localhost:5432/database_name"
 ```
 Substitua `user`, `password`, `localhost`, `5432` e `database_name` com as credenciais do seu banco.
 
-4. Instruções para Execução
-Deployment (Render)
-A aplicação está configurada para deploy contínuo (CI/CD) através do Render. Qualquer push para a branch main no repositório do GitHub dispara automaticamente um novo build e deploy da API.
 
-URL Base da API: https://techchallenge-consultalivros.onrender.com/
-A documentação interativa (Swagger UI) para a aplicação em produção está disponível em: https://techchallenge-consultalivros.onrender.com/docs
+4. **Execução**
 
-5. Instruções para Execução Local A aplicação é composta por dois serviços principais que devem ser executados em terminais separados.
+### 4.1. Deployment (Render)
+A aplicação está configurada para deploy contínuo (CI/CD) através do Render. Qualquer push para a branch `main` no repositório do GitHub dispara automaticamente um novo build e deploy.
+
+O projeto é composto por **dois Web Services** no Render, cada um rodando em seu próprio contêiner Docker:
+
+1.  **API (FastAPI)**: Executa a aplicação principal.
+    -   **URL Base:** `https://techchallenge-consultalivros.onrender.com/`
+    -   **Documentação (Swagger):** `https://techchallenge-consultalivros.onrender.com/docs`
+2.  **Dashboard (Streamlit)**: Executa o dashboard de monitoramento.
+    -   **URL:** `https://techchallenge-consultalivros-dashboard.onrender.com/`
+
+
+### 4.2. Execução Local
+A aplicação é composta por dois serviços principais que devem ser executados em terminais separados.
 
 a) Executar a API (FastAPI)
 Com o ambiente virtual ativado, execute o seguinte comando a partir da raiz do projeto (consultalivros/):
@@ -84,9 +95,8 @@ Com o ambiente virtual ativado, execute o seguinte comando a partir da raiz do p
 ```bash
 uvicorn src.consultaLivros.main:app --reload
 ```
-Onde:
-src.consultaLivros.main:app: Aponta para o objeto app do FastAPI dentro do arquivo src/consultaLivros/main.py.
---reload: Reinicia o servidor automaticamente sempre que um arquivo de código é alterado.
+`src.consultaLivros.main:app`: Aponta para o objeto app do FastAPI dentro do arquivo `src/consultaLivros/main.py`.
+`--reload`: Reinicia o servidor automaticamente sempre que um arquivo de código é alterado.
 
 A API estará disponível em http://127.0.0.1:8000. 
 A documentação interativa (Swagger UI) pode ser acessada em http://127.0.0.1:8000/docs.
@@ -114,7 +124,7 @@ Executar o Treinamento do Modelo:
 python -m src.consultaLivros.ml.treinamento_modelo
 ```
 
-6. Documentação da API
+6. **Documentação da API**
 A seguir, a lista de endpoints disponíveis:
 
 ### Autenticação
