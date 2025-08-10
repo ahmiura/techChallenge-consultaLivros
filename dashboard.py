@@ -4,6 +4,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+import requests
 
 st.set_page_config(layout="wide", page_title="Dashboard de Uso da API")
 
@@ -12,21 +13,18 @@ st.title("📊 Dashboard de Monitoramento da API de Livros")
 # Carrega as variáveis de ambiente do arquivo .env (para desenvolvimento local)
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+API_BASE_URL = os.getenv("API_URL")
 
 @st.cache_data(ttl=60)  # Adiciona cache para não consultar o DB a cada interação
-def load_prediction_logs_from_db():
-    """Carrega os logs de predição do banco de dados."""
-    if not DATABASE_URL:
-        # A função principal já mostra um erro, então aqui podemos retornar um DataFrame vazio
-        return pd.DataFrame()
+def carregar_status_do_cache():
+    """Busca o estado atual do cache de modelos da API."""
     try:
-        engine = create_engine(DATABASE_URL)
-        query = "SELECT timestamp, input_features, output_predicao FROM log_predicoes ORDER BY timestamp DESC"
-        df = pd.read_sql_query(query, engine)
-        return df
-    except Exception:
-        # Se a tabela ainda não existir, apenas retorna um DF vazio
-        return pd.DataFrame()
+        response = requests.get(f"{API_BASE_URL}/api/v1/ml/cache-status")
+        response.raise_for_status()  # Lança um erro para status code >= 400
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Não foi possível conectar à API para buscar o status do cache: {e}")
+        return None
 
 
 def load_logs_from_db():
@@ -47,30 +45,40 @@ def load_logs_from_db():
 
 
 st.divider()
-st.header("Monitoramento de Predições do Modelo de ML")
 
-# Carrega os dados das predições
-df_preds = load_prediction_logs_from_db()
+# --- Monitoramento de Modelos (Lendo do Cache da API) ---
+st.header("🤖 Monitoramento de Modelos em Memória")
 
-if not df_preds.empty:
-    df_preds['timestamp'] = pd.to_datetime(df_preds['timestamp'])
+cache_info = carregar_status_do_cache()
 
-    # Mapeia a predição numérica para um texto mais claro
-    df_preds['predicao_label'] = df_preds['output_predicao'].map({1: 'Bom Rating', 0: 'Ruim Rating'})
+if cache_info and cache_info.get("detalhes_modelos"):
+    # Converte os detalhes dos modelos em um DataFrame
+    df_modelos = pd.DataFrame(cache_info["detalhes_modelos"])
+    
+    # Expande a coluna de métricas (que é um dicionário) em múltiplas colunas
+    metricas_df = pd.json_normalize(df_modelos['metricas'])
+    df_modelos_vis = pd.concat([df_modelos.drop('metricas', axis=1), metricas_df], axis=1)
 
-    st.subheader("Distribuição das Predições (Bom vs. Ruim Rating)")
-    pred_counts = df_preds['predicao_label'].value_counts()
-    st.bar_chart(pred_counts)
+    st.subheader("Leaderboard de Modelos em Cache")
+    st.dataframe(
+        df_modelos_vis.style.format({
+            'acuracia': '{:.2%}',
+            'f1_score_macro': '{:.3f}',
+            'precisao_macro': '{:.3f}',
+            'recall_macro': '{:.3f}'
+        })
+    )
 
-    st.subheader("Predições ao Longo do Tempo")
-    # Agrupa por dia e conta as ocorrências de cada predição
-    preds_over_time = df_preds.set_index('timestamp').resample('D')['predicao_label'].value_counts().unstack(fill_value=0)
-    st.line_chart(preds_over_time)
+    st.subheader("Comparativo de Performance (F1-Score)")
+    # Garante que a coluna existe antes de tentar plotar
+    if 'f1_score_macro' in df_modelos_vis.columns:
+        chart_data = df_modelos_vis[['nome', 'f1_score_macro']].set_index('nome')
+        st.bar_chart(chart_data)
+    else:
+        st.warning("Métricas de F1-Score não disponíveis.")
 
-    with st.expander("Ver Logs de Predições Brutos"):
-        st.dataframe(df_preds)
 else:
-    st.warning("Nenhum dado de log de predição para exibir.")
+    st.info("Nenhum modelo treinado encontrado no cache da API. Dispare o treinamento na rota /train.")
 
 
 

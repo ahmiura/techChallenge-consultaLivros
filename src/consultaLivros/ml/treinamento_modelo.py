@@ -14,7 +14,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def _treinar_um_modelo(nome_modelo: str, modelo_instancia: Any, X_train, y_train, X_test, y_test, X, y) -> tuple[str, Any]:
+def _treinar_um_modelo(nome_modelo: str, modelo_instancia: Any, X_train, y_train, X_test, y_test, X, y) -> tuple[str, Any, Dict]:
     """
     Função auxiliar para treinar, avaliar e registrar um único modelo.
     Retorna o nome do modelo e a instância final treinada.
@@ -27,11 +27,18 @@ def _treinar_um_modelo(nome_modelo: str, modelo_instancia: Any, X_train, y_train
     report = classification_report(y_test, predictions, output_dict=True, zero_division=0)
     logging.info(f"Acurácia para '{nome_modelo}': {report['accuracy']:.2%}")
 
+    report_dict = classification_report(y_test, predictions, output_dict=True, zero_division=0)
+    metricas = {
+        "acuracia": report_dict["accuracy"],
+        "f1_score_macro": report_dict["macro avg"]["f1-score"]
+    }
+    logging.info(f"Métricas para '{nome_modelo}': {metricas}")
+
     # Retreinamento com todos os dados para o modelo final
     logging.info(f"Retreinando '{nome_modelo}' com todos os dados...")
     modelo_instancia.fit(X, y)
     
-    return nome_modelo, modelo_instancia
+    return nome_modelo, modelo_instancia, metricas
 
 
 def treinar_e_carregar_modelos_em_cache(cache: Dict[str, Any]):
@@ -73,9 +80,11 @@ def treinar_e_carregar_modelos_em_cache(cache: Dict[str, Any]):
 
         # 4. Coleta dos modelos treinados e atualização do cache
         modelos_treinados = {nome: modelo for nome, modelo in resultados}
+        metricas_treinamento = {nome: metricas for nome, modelo, metricas in resultados}
         
         with cache["lock"]:
             cache["modelos"] = modelos_treinados
+            cache["metricas"] = metricas_treinamento
             cache["encoder_prod"] = encoder
             cache["tfidf_prod"] = tfidf
             logging.info(f"Cache atualizado com {len(modelos_treinados)} novos modelos.")

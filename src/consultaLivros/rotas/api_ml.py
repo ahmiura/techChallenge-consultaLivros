@@ -72,6 +72,9 @@ async def get_prediction(
     """
     with modelo_cache["lock"]:
         modelo_selecionado = modelo_cache["modelos"].get(nome_modelo)
+
+        logging.info(f"Todos os modelos disponíveis no cache: {modelo_cache['modelos'].keys()}")
+        logging.info(f"Modelo selecionado: {modelo_selecionado}")
         
         if modelo_selecionado is None:
             raise HTTPException(
@@ -100,4 +103,26 @@ async def get_prediction(
         "modelo_usado": nome_modelo,
         "rating_predito": predicted_class
     }
-      
+
+
+@router.get("/cache-status", response_model=dict)
+async def get_cache_status():
+    """
+    Retorna o estado atual do cache de modelos de ML, incluindo os modelos
+    carregados e suas métricas de treinamento mais recentes.
+    """
+    with modelo_cache["lock"]:
+        # Prepara uma resposta segura sem expor os objetos do modelo
+        modelos_info = {}
+        metricas = modelo_cache.get("metricas", {})
+        for nome_modelo in modelo_cache.get("modelos", {}).keys():
+            modelos_info[nome_modelo] = {
+                "nome": nome_modelo,
+                "metricas": metricas.get(nome_modelo, "N/A")
+            }
+
+    return {
+        "modelos_carregados": list(modelo_cache.get("modelos", {}).keys()),
+        "artefatos_carregados": "encoder_prod" in modelo_cache and "tfidf_prod" in modelo_cache,
+        "detalhes_modelos": list(modelos_info.values())
+    }
