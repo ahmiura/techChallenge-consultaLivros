@@ -1,12 +1,14 @@
 📚 Consulta Livros - API e Pipeline de ML
 
-1. **Descrição do Projeto**
+## **1.Descrição do Projeto**
+
 O projeto **Consulta Livros** é uma aplicação que demonstra o ciclo de vida de um projeto de dados, desde a coleta (web scraping) até a disponibilização de um modelo de Machine Learning via API. A aplicação realiza a raspagem de dados do site `books.toscrape.com`, armazena as informações em um banco de dados PostgreSQL e as expõe através de uma API RESTful construída com FastAPI.
 
 Além disso, o projeto inclui um pipeline de Machine Learning com `scikit-learn` para prever a avaliação de livros (classificando-os como "bons" ou "ruins"). O sistema é complementado por monitoramento, que salva os logs de requisições em um banco de dados PostgreSQL, e um dashboard analítico interativo construído com Streamlit para visualização de métricas da API.
 
 
-2. **Arquitetura**
+## **2.Arquitetura**
+
 O projeto utiliza uma arquitetura desacoplada e organizada, seguindo as melhores práticas de Clean Code para projetos Python.
 
 API (`FastAPI`): O core da aplicação, responsável por servir os endpoints, autenticação e validação de dados.
@@ -26,7 +28,8 @@ Monitoramento (`Logging` + `Streamlit`): Todas as requisições são logadas no 
 Tarefas Agendadas (`APScheduler`): Uma tarefa diária é executada para limpar registros antigos de logs e tarefas, mantendo a base de dados otimizada.
 
 
-3. **Configuração do Ambiente Local**
+## **3.Configuração do Ambiente Local**
+
 Siga os passos abaixo para configurar o ambiente de desenvolvimento local.
 
 Pré-requisitos
@@ -72,9 +75,9 @@ DATABASE_URL="postgresql://user:password@localhost:5432/database_name"
 Substitua `user`, `password`, `localhost`, `5432` e `database_name` com as credenciais do seu banco.
 
 
-4. **Execução**
+## **4.Execução**
 
-### 4.1. Deployment (Render)
+### Deployment (Render)
 A aplicação está configurada para deploy contínuo (CI/CD) através do Render. Qualquer push para a branch `main` no repositório do GitHub dispara automaticamente um novo build e deploy.
 
 O projeto é composto por **dois Web Services** no Render, cada um rodando em seu próprio contêiner Docker:
@@ -86,7 +89,7 @@ O projeto é composto por **dois Web Services** no Render, cada um rodando em se
     -   **URL:** `https://techchallenge-consultalivros-dashboard.onrender.com/`
 
 
-### 4.2. Execução Local
+### Execução Local
 A aplicação é composta por dois serviços principais que devem ser executados em terminais separados.
 
 a) Executar a API (FastAPI)
@@ -124,7 +127,7 @@ Executar o Treinamento do Modelo:
 python -m src.consultaLivros.ml.treinamento_modelo
 ```
 
-6. **Documentação da API**
+## **5.Documentação da API**
 A seguir, a lista de endpoints disponíveis:
 
 ### Autenticação
@@ -172,7 +175,9 @@ A seguir, a lista de endpoints disponíveis:
 | POST   | `/api/v1/ml/train`        | Dispara o treinamento do modelo em segundo plano.                  | Nenhuma            |
 | POST   | `/api/v1/ml/predictions`  | Recebe dados de um livro e retorna uma predição de rating.         | Nenhuma            |
 
-6. Exemplos de Uso (API em Produção)
+
+## **6. Exemplos de Uso (API em Produção)**
+
 Os exemplos a seguir utilizam `cURL` para interagir com a API em produção, hospedada no Render. O fluxo demonstra desde a criação de um usuário até a utilização de rotas públicas e protegidas.
 
 1. Criar um novo usuário:

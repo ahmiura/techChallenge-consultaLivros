@@ -15,10 +15,11 @@ router = APIRouter(
 @router.delete("/limpa-tabela-livros", status_code=status.HTTP_200_OK)
 async def limpa_tabela_livros(db: Session = Depends(get_db), current_user: schemas_usuario.Usuario = Depends(get_current_user)):
     """
-    Deleta todos os registros da tabela livros. Requer autenticação.
+    Deleta todos os registros da tabela livros e reinicia a contagem do ID.
+    Requer autenticação.
     """
-    livros_deletados = livros_repositorio.deleta_todos_livros(db)
-    return {"message": f"{livros_deletados} livros foram deletados com sucesso."}
+    livros_repositorio.deleta_todos_livros(db)
+    return {"message": "A tabela de livros foi limpa e a contagem de ID foi reiniciada com sucesso."}
 
 
 @router.delete("/limpa-tabela-usuarios", status_code=status.HTTP_200_OK)

@@ -67,11 +67,15 @@ def busca_todas_categorias(db: Session) -> List[str]:
     return [categoria[0] for categoria in categorias_tuplas]
 
 
-def deleta_todos_livros(db: Session) -> int:
-    """Deleta todos os livros no banco de dados."""
-    resultado_query = db.query(Livro).delete()
+def deleta_todos_livros(db: Session):
+    """
+    Deleta todos os livros da tabela e reinicia a contagem do ID.
+    Usa TRUNCATE para eficiência e para resetar a sequência do ID.
+    """
+    # TRUNCATE é mais eficiente que DELETE para limpar tabelas inteiras
+    # e RESTART IDENTITY zera o contador do ID.
+    db.execute(text("TRUNCATE TABLE livros RESTART IDENTITY"))
     db.commit()
-    return resultado_query
 
 
 def obter_estatisticas_gerais(db: Session) -> dict:
