@@ -55,6 +55,12 @@ async def limpa_tabela_tarefas(db: Session = Depends(get_db), current_user: sche
     return {"message": f"{tarefas_deletadas} tarefas foram deletadas com sucesso."} 
 
 
+@router.get("/listar-modelos", status_code=status.HTTP_200_OK)
+async def listar_modelos(db: Session = Depends(get_db)):
+    listar_modelos = registro_modelos_repositorio.listar_modelos_em_producao(db)
+    return {"modelos": listar_modelos}
+                        
+
 @router.post("/promover-modelo/{nome_modelo}/{versao}", status_code=status.HTTP_200_OK)
 async def promover_modelo(
     nome_modelo: str,

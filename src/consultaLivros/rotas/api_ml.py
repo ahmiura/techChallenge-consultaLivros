@@ -54,9 +54,7 @@ def carregar_modelos_em_producao(db_session: Session | None = None):
         with modelo_cache["lock"]:
             modelo_cache["modelos"] = modelos_carregados
             modelo_cache["artefatos"] = artefatos_carregados # Mapeia versão para seus artefatos
-            # Precisamos de um link entre o modelo e seus artefatos, vamos simplificar por agora
-            # Para uma solução mais robusta, o registro do modelo teria um FK para a versão do artefato
-            # Por simplicidade, vamos assumir que todos os modelos em prod usam o mesmo conjunto de artefatos mais recente.
+            
             if artefatos_carregados:
                  # Pega a última versão de artefatos carregada
                 ultima_versao = sorted(artefatos_carregados.keys())[-1]
