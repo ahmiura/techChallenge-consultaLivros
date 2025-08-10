@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from ..modelos.registro_modelo import RegistroModelo
 
-def registrar_modelo(db: Session, nome_modelo: str, caminhos: dict, metricas: dict):
+def registrar_modelo(db: Session, nome_modelo: str, versao: str, caminhos: dict, metricas: dict):
     """Salva os metadados de um modelo treinado no banco de dados."""
     registro = RegistroModelo(
         nome_modelo=nome_modelo,
+        versao=versao,
         caminho_arquivo_modelo=caminhos["modelo"],
         caminho_arquivo_encoder=caminhos["encoder"],
         caminho_arquivo_tfidf=caminhos["tfidf"],
