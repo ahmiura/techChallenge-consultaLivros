@@ -16,6 +16,10 @@ def registrar_modelo(db: Session, nome_modelo: str, versao: str, caminhos: dict,
     db.refresh(registro)
     return registro
 
+def listar_todos_modelos(db: Session):
+    """Retorna uma lista de todos os modelos marcados como 'em_producao'."""
+    return db.query(RegistroModelo).all()
+
 def listar_modelos_em_producao(db: Session):
     """Retorna uma lista de todos os modelos marcados como 'em_producao'."""
     return db.query(RegistroModelo).filter(RegistroModelo.em_producao == True).all()

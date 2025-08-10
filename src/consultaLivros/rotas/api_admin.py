@@ -57,7 +57,7 @@ async def limpa_tabela_tarefas(db: Session = Depends(get_db), current_user: sche
 
 @router.get("/listar-modelos", status_code=status.HTTP_200_OK)
 async def listar_modelos(db: Session = Depends(get_db)):
-    listar_modelos = registro_modelos_repositorio.listar_modelos_em_producao(db)
+    listar_modelos = registro_modelos_repositorio.listar_todos_modelos(db)
     return {"modelos": listar_modelos}
                         
 
