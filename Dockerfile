@@ -48,5 +48,5 @@ USER appuser
 EXPOSE 10000
 
 # Comando para iniciar a aplicação. O Render injeta a variável $PORT.
-#CMD ["uvicorn", "src.consultaLivros.main:app", "--host", "0.0.0.0", "--port", "10000"]
-CMD ["uvicorn", "src.consultaLivros.main:app", "--host", "0.0.0.0", "--port", "10000", "--log-level", "debug"]
+# Usamos a forma de shell para que a variável de ambiente $PORT seja expandida.
+CMD uvicorn src.consultaLivros.main:app --host 0.0.0.0 --port $PORT --log-level info

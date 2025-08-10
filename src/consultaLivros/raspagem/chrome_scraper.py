@@ -111,7 +111,7 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
                 logging.info(f"Tarefa {id_tarefa} concluída com sucesso.")
             db.commit()
 
-        return {"total_encontrado": len(total_livros_encontrados)}
+        return {"total_encontrado": total_livros_encontrados}
     
     except Exception as e:
         logging.error(f"Erro ao rodar o scraper: {e}", exc_info=True)
