@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..db.database import get_db
 from ..repositorios import livros_repositorio, usuarios_repositorio, tarefas_repositorio
-from ..autenticacao.seguranca import get_password_hash, get_current_user
-from ..schemas import usuario as schemas_usuario
+from ..autenticacao.seguranca import get_current_user
+from ..schemas import token as schemas_token
 
 
 router = APIRouter(
@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.delete("/limpa-tabela-livros", status_code=status.HTTP_200_OK)
-async def limpa_tabela_livros(db: Session = Depends(get_db), current_user: schemas_usuario.Usuario = Depends(get_current_user)):
+async def limpa_tabela_livros(db: Session = Depends(get_db), current_user: schemas_token.TokenData = Depends(get_current_user)):
     """
     Deleta todos os registros da tabela livros e reinicia a contagem do ID.
     Requer autenticação.
@@ -23,7 +23,7 @@ async def limpa_tabela_livros(db: Session = Depends(get_db), current_user: schem
 
 
 @router.delete("/limpa-tabela-usuarios", status_code=status.HTTP_200_OK)
-async def limpa_tabela_usuarios(db: Session = Depends(get_db), current_user: schemas_usuario.Usuario = Depends(get_current_user)):
+async def limpa_tabela_usuarios(db: Session = Depends(get_db), current_user: schemas_token.TokenData = Depends(get_current_user)):
     """
     Deleta todos os registros da tabela usuarios. Requer autenticação.
     """
@@ -32,16 +32,21 @@ async def limpa_tabela_usuarios(db: Session = Depends(get_db), current_user: sch
 
 
 @router.delete("/limpa-usuario/{usuario_id}", status_code=status.HTTP_200_OK)
-async def limpa_usuario(usuario_id: int, db: Session = Depends(get_db), current_user: schemas_usuario.Usuario = Depends(get_current_user)):
+async def limpa_usuario(usuario_id: int, db: Session = Depends(get_db), current_user: schemas_token.TokenData = Depends(get_current_user)):
     """
     Deleta um usuário específico pelo ID. Requer autenticação.
     """
-    usuario_deletado = usuarios_repositorio.deleta_usuario_por_id(db, usuario_id)    
-    return {"message": f"Usuário {usuario_deletado.username} foi deletado com sucesso."}
+    usuario_deletado = usuarios_repositorio.deleta_usuario_por_id(db, usuario_id)
+    if not usuario_deletado:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Usuário com ID {usuario_id} não encontrado."
+        )
+    return {"message": f"Usuário '{usuario_deletado.username}' foi deletado com sucesso."}
 
 
 @router.delete("/limpa-tabela-tarefas", status_code=status.HTTP_200_OK)
-async def limpa_tabela_tarefas(db: Session = Depends(get_db), current_user: schemas_usuario.Usuario = Depends(get_current_user)):
+async def limpa_tabela_tarefas(db: Session = Depends(get_db), current_user: schemas_token.TokenData = Depends(get_current_user)):
     """
     Deleta todos os registros da tabela tarefas. Requer autenticação.
     """

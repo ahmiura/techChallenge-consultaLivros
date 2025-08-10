@@ -6,7 +6,7 @@ from .db.database import SessionLocal
 from .repositorios import logs_repositorio
 import time
 # Importe o novo modelo para que o Alembic/SQLAlchemy o reconheça
-from .modelos import logs
+from .modelos import logs, log_predicao, registro_modelo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from .jobs.limpeza_periodica import executar_limpeza_periodica
 
@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     print("--- Iniciando a aplicação ---")
     cria_banco()
     print("Carregando modelos de Machine Learning...")
-    api_ml.carregar_modelo_e_encoder()
+    api_ml.carregar_modelos_em_producao()
     
     # Adiciona a tarefa de limpeza para rodar uma vez por dia
     scheduler.add_job(executar_limpeza_periodica, 'interval', days=1, id="limpeza_diaria")

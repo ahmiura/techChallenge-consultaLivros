@@ -10,6 +10,8 @@ from typing import List, Dict, Any
 import os
 import logging
 from threading import Lock
+from ..repositorios import logs_predicoes_repositorio
+from ..repositorios import registro_modelos_repositorio
 
 # Constantes para os caminhos dos modelos, facilitando a manutenção
 MODELOS_DIR = "modelos_ml"
@@ -19,34 +21,52 @@ CAMINHO_TFIDF = os.path.join(MODELOS_DIR, 'tfidf_livros.pkl')
 
 # Cache para armazenar o modelo e o encoder
 modelo_cache: Dict[str, Any] = {
-    "modelo": None,
-    "encoder": None,
-    "tfidf": None,
+    "modelos": {},
+    "artefatos": {},
     "lock": Lock()  # Adiciona um lock para garantir acesso thread-safe ao cache
 }
 
-def carregar_modelo_e_encoder():
-    """
-    Carrega o modelo, o encoder e o vetorizador TF-IDF do disco para o cache.
-    Levanta um FileNotFoundError se algum arquivo não for encontrado.
-    Esta função é chamada na inicialização da aplicação (lifespan).
-    """
-    logging.info("Tentando carregar modelo, encoder e TF-IDF do disco...")
+def carregar_modelos_em_producao():
+    """Carrega todos os modelos marcados como 'em_producao' para o cache."""
+    logging.info("Carregando modelos em produção para o cache...")
+    db = SessionLocal()
     try:
-        with open(CAMINHO_MODELO, 'rb') as model_file:
-            modelo_cache["modelo"] = pickle.load(model_file)
-        with open(CAMINHO_ENCODER, 'rb') as encoder_file:
-            modelo_cache["encoder"] = pickle.load(encoder_file)
-        with open(CAMINHO_TFIDF, 'rb') as tfidf_file:
-            modelo_cache["tfidf"] = pickle.load(tfidf_file)
+        modelos_a_carregar = registro_modelos_repositorio.listar_modelos_em_producao(db)
+        
+        # Limpa o cache antes de carregar
+        modelos_carregados = {}
+        artefatos_carregados = {}
 
-        logging.info("Modelo, encoder e TF-IDF carregados com sucesso para o cache.")
-    except FileNotFoundError:
-        logging.warning("Arquivos de modelo não encontrados. A API iniciará sem modelo carregado. Use o endpoint /train para treinar um.")
-        # Limpa o cache para garantir um estado consistente
-        modelo_cache["modelo"] = None
-        modelo_cache["encoder"] = None
-        modelo_cache["tfidf"] = None
+        for registro in modelos_a_carregar:
+            # Carrega o modelo
+            with open(registro.caminho_arquivo_modelo, 'rb') as f:
+                modelos_carregados[registro.nome_modelo] = pickle.load(f)
+            
+            # Carrega os artefatos (encoder/tfidf), evitando duplicação
+            versao_artefato = registro.versao
+            if versao_artefato not in artefatos_carregados:
+                with open(registro.caminho_arquivo_encoder, 'rb') as f:
+                    encoder = pickle.load(f)
+                with open(registro.caminho_arquivo_tfidf, 'rb') as f:
+                    tfidf = pickle.load(f)
+                artefatos_carregados[versao_artefato] = {"encoder": encoder, "tfidf": tfidf}
+
+        with modelo_cache["lock"]:
+            modelo_cache["modelos"] = modelos_carregados
+            modelo_cache["artefatos"] = artefatos_carregados # Mapeia versão para seus artefatos
+            # Precisamos de um link entre o modelo e seus artefatos, vamos simplificar por agora
+            # Para uma solução mais robusta, o registro do modelo teria um FK para a versão do artefato
+            # Por simplicidade, vamos assumir que todos os modelos em prod usam o mesmo conjunto de artefatos mais recente.
+            if artefatos_carregados:
+                 # Pega a última versão de artefatos carregada
+                ultima_versao = sorted(artefatos_carregados.keys())[-1]
+                modelo_cache["encoder_prod"] = artefatos_carregados[ultima_versao]["encoder"]
+                modelo_cache["tfidf_prod"] = artefatos_carregados[ultima_versao]["tfidf"]
+
+
+        logging.info(f"Carregados {len(modelos_carregados)} modelos em produção.")
+    finally:
+        db.close()
 
 
 router = APIRouter(
@@ -92,39 +112,54 @@ async def train_model(background_tasks: BackgroundTasks):
 
 # O endpoint de predição agora usa os modelos carregados do cache
 @router.post("/predictions", response_model=dict)
-async def get_prediction(livro_input: LivroBase):
-    """Recebe os dados de um livro e retorna uma predição de rating (bom/ruim)."""
-    
-    # Utiliza o lock para garantir que o cache não seja modificado durante a leitura
+async def get_prediction(
+    livro_input: LivroBase, 
+    nome_modelo: str = "random_forest", 
+    db: Session = Depends(get_db)):
+    """
+    Recebe os dados de um livro e retorna uma predição usando um modelo específico.
+    """
     with modelo_cache["lock"]:
-        if modelo_cache["modelo"] is None:
+        # Seleciona o modelo do cache
+        modelo_selecionado = modelo_cache["modelos"].get(nome_modelo)
+
+        if modelo_selecionado is None:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-                detail="Modelo não está carregado. Treine o modelo ou verifique os logs do servidor."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Modelo '{nome_modelo}' não está carregado ou não existe."
             )
         
+        # Pega os artefatos de produção (encoder e tfidf)
+        encoder = modelo_cache.get("encoder_prod")
+        tfidf = modelo_cache.get("tfidf_prod")
+        
+        if not encoder or not tfidf:
+             raise HTTPException(status_code=503, detail="Artefatos de pré-processamento não carregados.")
+
+        # A lógica de preparação e predição continua a mesma...
+        input_df_processed = preparar_input_para_predicao(
+            livro_input,
+            encoder,
+            tfidf,
+            modelo_selecionado.feature_names_in_
+        )
+        prediction = modelo_selecionado.predict(input_df_processed)
+        predicted_class = int(prediction[0])
+
+        # Loga a predição
         try:
-            # Prepara os dados de entrada usando a função auxiliar
-            model = modelo_cache["modelo"]
-            encoder = modelo_cache["encoder"]
-            tfidf = modelo_cache["tfidf"]
-            
-            input_df_processed = preparar_input_para_predicao(
-                livro_input,
-                encoder,
-                tfidf,
-                model.feature_names_in_
+            logs_predicoes_repositorio.cria_log_predicao(
+                db=db, 
+                livro_input=livro_input, 
+                predicao=predicted_class
             )
-            # Faz a predição
-            model = modelo_cache["modelo"]
-            prediction = model.predict(input_df_processed)
-            predicted_class = int(prediction[0])
-        except Exception as e:
-            # Captura e loga possíveis erros durante o pré-processamento ou predição
-            logging.error(f"Erro ao processar predição para o livro '{livro_input.titulo}': {e}", exc_info=True)
-            raise HTTPException(status_code=400, detail=f"Erro ao processar os dados de entrada: {e}")
-    
+        except Exception as log_e:
+            # Loga um erro se a escrita no banco de logs falhar, mas não interrompe a resposta ao usuário.
+            logging.error(f"Falha ao salvar o log da predição: {log_e}", exc_info=True)
+
     return {
         "livro": livro_input.titulo, 
-        "rating_predito": predicted_class # Ex: 0 para 'ruim', 1 para 'bom'
+        "modelo_usado": nome_modelo,
+        "rating_predito": predicted_class
     }
+      
