@@ -114,8 +114,8 @@ async def get_training_data(db: Session = Depends(get_db)):
 async def train_model(background_tasks: BackgroundTasks):
     """Treina o modelo de machine learning e salva os artefatos."""
     try:
-        # A tarefa em segundo plano agora também atualiza o cache em memória de forma segura
-        background_tasks.add_task(treinar_e_salvar_modelos, cache_para_atualizar=modelo_cache)
+        # Tarefa em segundo plano 
+        background_tasks.add_task(treinar_e_salvar_modelos)
         return {"message": "Processo do treino do Modelo iniciado em segundo plano."}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
