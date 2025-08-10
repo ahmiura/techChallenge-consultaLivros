@@ -81,6 +81,9 @@ async def promover_modelo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Modelo '{nome_modelo}' na versão '{versao}' não encontrado no registro."
         )
+    
+    # Carrega os modelos para o cache
+    carregar_modelos_em_producao()
 
     return {
         "message": f"Modelo '{modelo_promovido.nome_modelo}' (versão {modelo_promovido.versao}) foi marcado para produção. Faça um novo deploy para ativá-lo."

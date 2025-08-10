@@ -128,10 +128,14 @@ async def get_prediction(
         modelo_selecionado = modelo_cache["modelos"].get(nome_modelo)
 
         if modelo_selecionado is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Modelo '{nome_modelo}' não está carregado ou não existe."
-            )
+            carregar_modelos_em_producao()
+
+            modelo_selecionado = modelo_cache["modelos"].get(nome_modelo)
+            if modelo_selecionado is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Modelo '{nome_modelo}' não está carregado ou não existe."
+                )
         
         # Pega os artefatos de produção (encoder e tfidf)
         encoder = modelo_cache.get("encoder_prod")
