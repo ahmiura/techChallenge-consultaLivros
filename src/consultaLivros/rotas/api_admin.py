@@ -69,8 +69,7 @@ async def promover_modelo(
     current_user: schemas_token.TokenData = Depends(get_current_user)
 ):
     """
-    Promove uma versão específica de um modelo para o ambiente de produção.
-    Isso o tornará o modelo padrão para predições e o carregará na memória.
+    Promove uma versão específica de um modelo para o ambiente de produção (no DB).
     Requer autenticação.
     """
     modelo_promovido = registro_modelos_repositorio.promover_modelo_para_producao(
@@ -82,22 +81,8 @@ async def promover_modelo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Modelo '{nome_modelo}' na versão '{versao}' não encontrado no registro."
         )
-    
-    # Após promover no banco, instrui a aplicação a recarregar os modelos em memória.
-    # Isso garante que a mudança seja refletida imediatamente sem reiniciar o servidor.
-    try:
-        carregar_modelos_em_producao(db_session=db)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Modelo promovido no banco, mas falha ao recarregar em memória: {e}"
-        )
 
     return {
-        "message": "Modelo promovido com sucesso e recarregado na API.",
-        "modelo_em_producao": {
-            "nome": modelo_promovido.nome_modelo,
-            "versao": modelo_promovido.versao,
-            "metricas": modelo_promovido.metricas
-        }
+        "message": f"Modelo '{modelo_promovido.nome_modelo}' (versão {modelo_promovido.versao}) foi marcado para produção. Faça um novo deploy para ativá-lo."
     }
+
