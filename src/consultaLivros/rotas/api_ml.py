@@ -126,6 +126,8 @@ async def get_prediction(
     with modelo_cache["lock"]:
         # Seleciona o modelo do cache
         modelo_selecionado = modelo_cache["modelos"].get(nome_modelo)
+        logging.info(f"Modelo carregado para predição: {modelo_selecionado}")
+        logging.info(f"Todo o cache: {modelo_cache}")
 
         if modelo_selecionado is None:
             carregar_modelos_em_producao()
