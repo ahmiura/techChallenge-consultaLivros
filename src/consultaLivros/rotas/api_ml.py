@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from ..ml.preparacao_dados import preparar_dados_livros, preparar_input_para_predicao
-from ..ml.treinamento_modelo import treinar_e_salvar_modelo
+from ..ml.treinamento_modelo import treinar_e_salvar_modelos
 from ..schemas.livros import LivroBase
 import pickle
 from ..db.database import get_db
