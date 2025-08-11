@@ -46,7 +46,7 @@ def treinar_e_carregar_modelos_em_cache(cache: Dict[str, Any]):
     Busca dados, treina múltiplos modelos em paralelo e os carrega diretamente
     em um dicionário de cache em memória, além de salvar os artefatos em disco.
     """
-    logging.info("Iniciando pipeline de treinamento para atualização do cache...")
+    logging.info("Iniciando pipeline de treinamento para atualização do cache e no disco...")
     SEED = 42
 
     db = SessionLocal()
@@ -63,6 +63,9 @@ def treinar_e_carregar_modelos_em_cache(cache: Dict[str, Any]):
         y = features_df['bom_rating']
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=SEED)
+
+        logging.info(f"Quantidade de Dados de treino: {len(X_train)}")
+        logging.info(f"Quantidade de Dados de teste: {len(X_test)}")
 
         # 2. Definição dos Modelos a Treinar
         modelos_a_treinar = {
