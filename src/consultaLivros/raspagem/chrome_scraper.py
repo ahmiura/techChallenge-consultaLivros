@@ -58,94 +58,40 @@ def raspa_livros_categoria(driver: webdriver.Chrome, url_categoria: str, nome_ca
     return dados_livros
 
 
-def _worker_raspa_lote_de_categorias(lote_categorias: list[dict]) -> list[dict]:
-    """
-    Função de trabalho para raspar um LOTE de categorias.
-    Inicia um único driver e o reutiliza para todas as categorias no lote.
-    """
-    driver = None
-    todos_os_livros_do_lote = []
-    try:
-        driver = _setup_driver()
-        logging.info(f"Worker iniciando raspagem para um lote de {len(lote_categorias)} categorias.")
-        
-        for categoria in lote_categorias:
-            livros = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
-            if livros:
-                todos_os_livros_do_lote.extend(livros)
-        
-        logging.info(f"Worker finalizou seu lote, encontrou {len(todos_os_livros_do_lote)} livros no total.")
-        return todos_os_livros_do_lote
-    except Exception as e:
-        logging.error(f"Worker falhou ao processar seu lote de categorias: {e}", exc_info=True)
-        return []
-    finally:
-        if driver:
-            driver.quit()
-            logging.info("Worker fechou seu driver.")
-
-
 def rodar_scraper_completo(id_tarefa: str | None = None):
     """
-    Função principal que busca categorias e dispara workers para processar
-    LOTES de categorias concorrentemente. 
+    Função principal para rodar o scraper completo.
     Atualiza o status da tarefa.
     """
-    # Este driver inicial é usado apenas para buscar a lista de categorias.
     driver = _setup_driver()
-
+    total_livros_encontrados = 0
     try:
-        # 1. ATUALIZAR STATUS DA TAREFA PARA "EXECUTANDO"
         with SessionLocal() as db:
+            # 1. ATUALIZAR STATUS DA TAREFA
             if id_tarefa:
-                tarefa = busca_tarefa_por_id(db, id_tarefa)
-                if not tarefa:
-                    logging.error(f"Tarefa com ID {id_tarefa} não encontrada.")
-                    return {"error": "Tarefa não encontrada"}
+                atualiza_tarefa(db, id_tarefa, estado="EXECUTANDO", resultado={"mensagem": "Raspagem iniciada"})
 
-                logging.info(f"Iniciando raspagem para a tarefa: {tarefa.id}")
-                atualiza_tarefa(db, tarefa.id, estado="EXECUTANDO", resultado={"mensagem": "Raspagem iniciada"})
-                db.commit()  # Garante que o estado seja salvo imediatamente
-
-            # 2. BUSCAR CATEGORIAS (usando o driver principal)
+            # 2. BUSCAR CATEGORIAS
             base_url = "https://books.toscrape.com/"
             driver.get(base_url)
-
-            logging.info("Buscando lista de categorias...")
             categoria_elements = driver.find_elements(By.XPATH, "//div[@class='side_categories']//ul/li/ul/li/a")
-
             categorias_para_raspar = [
-                {
-                    'nome': cat_el.text, 
-                    'url': urljoin(base_url, cat_el.get_attribute('href'))
-                }
+                {'nome': cat_el.text, 'url': urljoin(base_url, cat_el.get_attribute('href'))}
                 for cat_el in categoria_elements
             ]
-            logging.info(f"Encontradas {len(categorias_para_raspar)} categorias para raspar.")
-
-        # O driver principal não é mais necessário, pode ser fechado.
-        driver.quit()
-        driver = None  # Garante que não será fechado de novo no finally
-
-        # 3. PREPARAÇÃO E EXECUÇÃO DOS LOTES
-        NUMERO_DE_WORKERS = 2
-        # Divide a lista de categorias em N lotes para os N workers
-        lotes_de_categorias = np.array_split(categorias_para_raspar, NUMERO_DE_WORKERS)
-        
-        todos_os_livros = []
-        with ThreadPoolExecutor(max_workers=NUMERO_DE_WORKERS) as executor:
-            # executor.map agora passa cada LOTE para a função do worker
-            resultados_por_lote = executor.map(_worker_raspa_lote_de_categorias, lotes_de_categorias)
             
-            for lista_livros in resultados_por_lote:
-                if lista_livros:
-                    todos_os_livros.extend(lista_livros)
+            todos_os_livros = []
+            # 3. RASPAGEM SEQUENCIAL (Mais estável para a Render)
+            for categoria in categorias_para_raspar:
+                logging.info(f"--- INICIANDO RASPAGEM DA CATEGORIA: {categoria['nome']} ---")
+                livros_desta_categoria = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
+                if livros_desta_categoria:
+                    todos_os_livros.extend(livros_desta_categoria)
 
-        total_livros_encontrados = len(todos_os_livros)
-        logging.info(f"Raspagem paralela em lotes finalizada. Total de {total_livros_encontrados} livros encontrados.")
+            total_livros_encontrados = len(todos_os_livros)
+            logging.info(f"Raspagem finalizada. Total de {total_livros_encontrados} livros encontrados.")
 
-        # 4. SALVAR DADOS EM MASSA E ATUALIZAR TAREFA
-        with SessionLocal() as db:
+            # 4. SALVAR DADOS EM MASSA E ATUALIZAR TAREFA
             if todos_os_livros:
                 logging.info(f"Salvando {total_livros_encontrados} livros no banco de dados em uma única transação.")
                 salva_dados_livros(db, todos_os_livros)
