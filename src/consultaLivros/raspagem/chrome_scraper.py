@@ -114,7 +114,10 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
             categoria_elements = driver.find_elements(By.XPATH, "//div[@class='side_categories']//ul/li/ul/li/a")
 
             categorias_para_raspar = [
-                {'nome': cat_el.text, 'url': cat_el.get_attribute('href')}
+                {
+                    'nome': cat_el.text, 
+                    'url': urljoin(base_url, cat_el.get_attribute('href'))
+                }
                 for cat_el in categoria_elements
             ]
             logging.info(f"Encontradas {len(categorias_para_raspar)} categorias para raspar.")
