@@ -2,12 +2,10 @@ import streamlit as st
 import pandas as pd
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import requests
 
 st.set_page_config(layout="wide", page_title="Dashboard de Uso da API")
-
 st.title("📊 Dashboard de Monitoramento da API de Livros")
 
 # Carrega as variáveis de ambiente do arquivo .env (para desenvolvimento local)
@@ -44,8 +42,6 @@ def load_logs_from_db():
         return pd.DataFrame()
 
 
-st.divider()
-
 # --- Monitoramento de Modelos (Lendo do Cache da API) ---
 st.header("🤖 Monitoramento de Modelos em Memória")
 
@@ -81,6 +77,7 @@ else:
     st.info("Nenhum modelo treinado encontrado no cache da API. Dispare o treinamento na rota /train.")
 
 
+st.divider()
 
 # Carrega os dados das requisicoes
 df = load_logs_from_db()
