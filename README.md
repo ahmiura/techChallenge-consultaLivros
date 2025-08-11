@@ -196,7 +196,8 @@ A seguir, a lista de endpoints disponíveis:
 | GET    | `/api/v1/ml/training-data`| Retorna o dataset completo para treinamento (features + alvo).     | Nenhuma            |
 | POST   | `/api/v1/ml/train`        | Dispara o treinamento do modelo em segundo plano.                  | Nenhuma            |
 | POST   | `/api/v1/ml/predictions`  | Recebe dados de um livro e retorna uma predição de rating.         | Nenhuma            |
-
+| GET   | `/api/v1/ml/cache-status`  | Retorna as métricas dos modelos em cache.         
+| Nenhuma            |
 
 
 
