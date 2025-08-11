@@ -25,7 +25,8 @@ def _setup_driver() -> webdriver.Chrome:
     chrome_options.add_argument("--disable-dev-shm-usage")
 
     logging.info("Instalando e configurando o ChromeDriver...")
-    driver = webdriver.Chrome(options=chrome_options)
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     logging.info("Driver do Chrome inicializado com sucesso.")
     return driver
 
