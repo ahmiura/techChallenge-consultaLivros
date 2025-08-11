@@ -1,14 +1,12 @@
 import logging
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor
-
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-
 from ..db.database import SessionLocal
 from ..repositorios.livros_repositorio import salva_dados_livros
 from ..repositorios.tarefas_repositorio import atualiza_tarefa, busca_tarefa_por_id
@@ -122,7 +120,7 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
         # 3. RASPAGEM PARALELA
         todos_os_livros = []
         # O número de workers pode ser ajustado conforme os recursos da máquina.
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             resultados_por_categoria = executor.map(_worker_raspa_categoria, categorias_para_raspar)
             for lista_livros in resultados_por_categoria:
                 if lista_livros:
