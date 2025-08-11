@@ -11,6 +11,7 @@ from ..db.database import SessionLocal
 from ..repositorios.livros_repositorio import salva_dados_livros
 from ..repositorios.tarefas_repositorio import atualiza_tarefa, busca_tarefa_por_id
 from .book_scraper import extrair_dados_livro
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,8 +25,7 @@ def _setup_driver() -> webdriver.Chrome:
     chrome_options.add_argument("--disable-dev-shm-usage")
 
     logging.info("Instalando e configurando o ChromeDriver...")
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
     logging.info("Driver do Chrome inicializado com sucesso.")
     return driver
 
@@ -57,35 +57,41 @@ def raspa_livros_categoria(driver: webdriver.Chrome, url_categoria: str, nome_ca
     return dados_livros
 
 
-def _worker_raspa_categoria(categoria: dict) -> list[dict]:
+def _worker_raspa_lote_de_categorias(lote_categorias: list[dict]) -> list[dict]:
     """
-    Função de trabalho para raspar uma única categoria.
-    Cada worker inicializa seu próprio driver para garantir o paralelismo seguro.
+    Função de trabalho para raspar um LOTE de categorias.
+    Inicia um único driver e o reutiliza para todas as categorias no lote.
     """
     driver = None
+    todos_os_livros_do_lote = []
     try:
         driver = _setup_driver()
-        logging.info(f"Worker iniciando raspagem para a categoria: {categoria['nome']}")
-        livros = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
-        logging.info(f"Worker finalizou a categoria '{categoria['nome']}', encontrou {len(livros)} livros.")
-        return livros
+        logging.info(f"Worker iniciando raspagem para um lote de {len(lote_categorias)} categorias.")
+        
+        for categoria in lote_categorias:
+            livros = raspa_livros_categoria(driver, categoria['url'], categoria['nome'])
+            if livros:
+                todos_os_livros_do_lote.extend(livros)
+        
+        logging.info(f"Worker finalizou seu lote, encontrou {len(todos_os_livros_do_lote)} livros no total.")
+        return todos_os_livros_do_lote
     except Exception as e:
-        logging.error(f"Worker falhou ao raspar a categoria '{categoria['nome']}': {e}", exc_info=True)
-        return []  # Retorna lista vazia em caso de erro para não quebrar o processo
+        logging.error(f"Worker falhou ao processar seu lote de categorias: {e}", exc_info=True)
+        return []
     finally:
         if driver:
             driver.quit()
+            logging.info("Worker fechou seu driver.")
 
 
 def rodar_scraper_completo(id_tarefa: str | None = None):
     """
-    Função principal para rodar o scraper de forma paralela.
-    Configura o Selenium, busca as categorias, e dispara workers para raspar
-    cada categoria concorrentemente. Salva os dados no banco e atualiza o status da tarefa.
+    Função principal que busca categorias e dispara workers para processar
+    LOTES de categorias concorrentemente. 
+    Atualiza o status da tarefa.
     """
     # Este driver inicial é usado apenas para buscar a lista de categorias.
     driver = _setup_driver()
-    total_livros_encontrados = 0
 
     try:
         # 1. ATUALIZAR STATUS DA TAREFA PARA "EXECUTANDO"
@@ -111,23 +117,28 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
                 {'nome': cat_el.text, 'url': cat_el.get_attribute('href')}
                 for cat_el in categoria_elements
             ]
-            logging.info(f"Encontradas {len(categorias_para_raspar)} categorias para raspar em paralelo.")
+            logging.info(f"Encontradas {len(categorias_para_raspar)} categorias para raspar.")
 
         # O driver principal não é mais necessário, pode ser fechado.
         driver.quit()
         driver = None  # Garante que não será fechado de novo no finally
 
-        # 3. RASPAGEM PARALELA
+        # 3. PREPARAÇÃO E EXECUÇÃO DOS LOTES
+        NUMERO_DE_WORKERS = 2
+        # Divide a lista de categorias em N lotes para os N workers
+        lotes_de_categorias = np.array_split(categorias_para_raspar, NUMERO_DE_WORKERS)
+        
         todos_os_livros = []
-        # O número de workers pode ser ajustado conforme os recursos da máquina.
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            resultados_por_categoria = executor.map(_worker_raspa_categoria, categorias_para_raspar)
-            for lista_livros in resultados_por_categoria:
+        with ThreadPoolExecutor(max_workers=NUMERO_DE_WORKERS) as executor:
+            # executor.map agora passa cada LOTE para a função do worker
+            resultados_por_lote = executor.map(_worker_raspa_lote_de_categorias, lotes_de_categorias)
+            
+            for lista_livros in resultados_por_lote:
                 if lista_livros:
                     todos_os_livros.extend(lista_livros)
 
         total_livros_encontrados = len(todos_os_livros)
-        logging.info(f"Raspagem paralela finalizada. Total de {total_livros_encontrados} livros encontrados.")
+        logging.info(f"Raspagem paralela em lotes finalizada. Total de {total_livros_encontrados} livros encontrados.")
 
         # 4. SALVAR DADOS EM MASSA E ATUALIZAR TAREFA
         with SessionLocal() as db:
