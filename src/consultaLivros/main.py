@@ -8,6 +8,8 @@ import time
 from .modelos import logs, log_predicao
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from .jobs.limpeza_periodica import executar_limpeza_periodica
+from .ml.gerenciador_de_modelos import carregar_modelos_do_disco
+
 
 # Cria uma instância do agendador
 scheduler = AsyncIOScheduler(timezone="UTC")
@@ -22,7 +24,7 @@ async def lifespan(app: FastAPI):
     cria_banco()
 
     print("Carregando modelos de Machine Learning do disco...")
-    api_ml.carregar_modelos_do_disco()
+    carregar_modelos_do_disco()
 
     # Adiciona a tarefa de limpeza para rodar uma vez por dia
     scheduler.add_job(executar_limpeza_periodica, 'interval', days=1, id="limpeza_diaria")
