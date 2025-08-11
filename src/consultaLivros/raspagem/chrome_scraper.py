@@ -122,7 +122,7 @@ def rodar_scraper_completo(id_tarefa: str | None = None):
         # 3. RASPAGEM PARALELA
         todos_os_livros = []
         # O número de workers pode ser ajustado conforme os recursos da máquina.
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             resultados_por_categoria = executor.map(_worker_raspa_categoria, categorias_para_raspar)
             for lista_livros in resultados_por_categoria:
                 if lista_livros:
